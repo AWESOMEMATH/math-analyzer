@@ -381,18 +381,32 @@ export default function Home() {
     setChatLoading(prev => ({ ...prev, [cardIndex]: true }))
     setTimeout(() => { const el = chatBoxRefs.current[cardIndex]; if (el) el.scrollTop = el.scrollHeight }, 50)
     try {
+      // 1. 토큰 초과 방지: Context에서 이미지 데이터 및 긴 문자열 제거
+      const cleanContext = { ...results[cardIndex] } as Record<string, any>
+      Object.keys(cleanContext).forEach(key => {
+        if (typeof cleanContext[key] === 'string' && cleanContext[key].length > 1000) {
+          delete cleanContext[key]
+        }
+      })
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-invite-code': encodeURIComponent(inviteCode) },
-        body: JSON.stringify({ chatHistory: history, analysisContext: results[cardIndex] })
+        body: JSON.stringify({ chatHistory: history, analysisContext: cleanContext })
       })
-      const data = await res.json()
-      if (data.text) {
+      const data = await res.json().catch(() => ({}))
+      
+      if (res.ok && data.text) {
         setChatHistories(prev => ({ ...prev, [cardIndex]: [...history, { role: 'assistant', content: data.text }] }))
-        setTimeout(() => { const el = chatBoxRefs.current[cardIndex]; if (el) el.scrollTop = el.scrollHeight }, 50)
+      } else {
+        setChatHistories(prev => ({ ...prev, [cardIndex]: [...history, { role: 'assistant', content: `[오류 발생] ${data.error || '답변을 생성하지 못했습니다.'}` }] }))
       }
-    } catch {}
-    setChatLoading(prev => ({ ...prev, [cardIndex]: false }))
+    } catch (err) {
+      setChatHistories(prev => ({ ...prev, [cardIndex]: [...history, { role: 'assistant', content: `[통신 오류] 서버와 연결할 수 없습니다.` }] }))
+    } finally {
+      setChatLoading(prev => ({ ...prev, [cardIndex]: false }))
+      setTimeout(() => { const el = chatBoxRefs.current[cardIndex]; if (el) el.scrollTop = el.scrollHeight }, 50)
+    }
   }
 
   // ── 내보내기 ──
