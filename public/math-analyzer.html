@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 수학 오답 분석기 | AWESOME MATH LAB</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1b2a;
+      --card: #1b263b;
+      --card2: #162032;
+      --cyan: #00d4ff;
+      --cyan2: #00b8d9;
+      --text: #e0e1dd;
+      --muted: #778da9;
+      --border: #2d3f55;
+      --red: #ff4444;
+      --orange: #ff8c00;
+      --yellow: #ffd700;
+      --green: #00cc66;
+      --input-bg: #0f1e2f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    .header {
+      text-align: center;
+      padding: 32px 0 28px;
+    }
+
+    .header .logo {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .header p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--cyan);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: var(--cyan);
+      border-radius: 2px;
+    }
+
+    .form-row {
+      margin-bottom: 16px;
+    }
+
+    .form-row label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+
+    .form-row input[type="text"] {
+      width: 100%;
+      padding: 11px 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      transition: border-color 0.2s;
+    }
+
+    .form-row input[type="text"]:focus {
+      outline: none;
+      border-color: var(--cyan);
+    }
+
+    .upload-area {
+      border: 1.5px dashed var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--cyan);
+      background: rgba(0, 212, 255, 0.04);
+    }
+
+    .upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .upload-text {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .upload-text strong {
+      color: var(--cyan);
+    }
+
+    .prob-num-input:focus {
+      outline: none;
+      border-color: var(--cyan) !important;
+    }
+
+    .preview-img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: var(--cyan);
+      color: #0d1b2a;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 6px;
+    }
+
+    .btn:hover:not(:disabled) {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: none;
+      text-align: center;
+      padding: 16px 0 4px;
+      color: var(--cyan);
+      font-size: 14px;
+    }
+
+    .spinner .dots span {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin: 0 3px;
+      animation: bounce 1.2s infinite;
+    }
+
+    .spinner .dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .spinner .dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: translateY(0);
+        opacity: 0.4;
+      }
+
+      40% {
+        transform: translateY(-7px);
+        opacity: 1;
+      }
+    }
+
+    .error-box {
+      display: none;
+      background: rgba(255, 68, 68, 0.1);
+      border: 1px solid rgba(255, 68, 68, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: var(--red);
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .result-card {
+      display: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #0d1b2a;
+      margin-bottom: 20px;
+    }
+
+    .badge.logic {
+      background: var(--red);
+    }
+
+    .badge.calc {
+      background: var(--orange);
+    }
+
+    .badge.read {
+      background: var(--yellow);
+    }
+
+    .badge.correct {
+      background: var(--green);
+    }
+
+    .result-section {
+      background: var(--card2);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--cyan);
+    }
+
+    .result-section.encourage {
+      border-left-color: var(--muted);
+    }
+
+    .result-section h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .result-section.encourage h3 {
+      color: var(--muted);
+    }
+
+    .result-section p {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .result-section.encourage p {
+      font-style: italic;
+      color: var(--muted);
+    }
+
+    .history-item {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-header {
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-details {
+      display: none;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .history-item.expanded .history-details {
+      display: block;
+    }
+
+    .history-item.expanded .arrow {
+      transform: rotate(180deg);
+    }
+
+    .arrow {
+      transition: transform 0.2s;
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 10px;
+    }
+
+    .step-item {
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .step-item.incorrect {
+      background: rgba(255,68,68,0.1);
+      border-color: rgba(255,68,68,0.3);
+    }
+
+    .step-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .step-badge.correct {
+      background: var(--green);
+      color: #000;
+    }
+
+    .step-badge.incorrect {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .step-content {
+      line-height: 1.5;
+      flex: 1;
+    }
+
+    .result-section.correct-sol {
+      border-left-color: var(--green);
+    }
+
+    .result-section.correct-sol h3 {
+      color: var(--green);
+    }
+
+    .result-section.good {
+      border-left-color: var(--yellow);
+    }
+
+    .result-section.good h3 {
+      color: var(--yellow);
+    }
+
+    .chat-container { border-top: 1px dashed var(--border); margin-top: 24px; padding-top: 20px; }
+    .chat-header { font-size: 13px; font-weight: 600; color: var(--cyan); margin-bottom: 12px; }
+    .chat-box { height: 300px; overflow-y: auto; padding: 14px; background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px; }
+    .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; word-break: break-all; }
+    .chat-msg.user { align-self: flex-end; background: var(--cyan); color: #0d1b2a; border-bottom-right-radius: 2px; }
+    .chat-msg.ai { align-self: flex-start; background: var(--card2); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 2px; }
+    .chat-input-row { display: flex; gap: 8px; }
+    .chat-input-row input { flex: 1; padding: 12px 14px; border-radius: 8px; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); font-size: 14px; }
+    .chat-input-row input:focus { outline: none; border-color: var(--cyan); }
+    .chat-btn { padding: 0 16px; background: var(--cyan); color: #0d1b2a; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .chat-btn:hover:not(:disabled) { opacity: 0.9; }
+    .chat-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-loading { align-self: flex-start; font-size: 12px; color: var(--muted); margin-top: -5px; margin-bottom: 5px; display: none; }
+
+    /* Custom scrollbar for chat */
+    .chat-box::-webkit-scrollbar { width: 6px; }
+    .chat-box::-webkit-scrollbar-track { background: transparent; }
+    .chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .history-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .history-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .history-date {
+      color: var(--muted);
+    }
+
+    .history-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0d1b2a;
+      margin-right: 6px;
+    }
+
+    .history-badge.logic {
+      background: var(--red);
+    }
+
+    .history-badge.calc {
+      background: var(--orange);
+    }
+
+    .history-badge.read {
+      background: var(--yellow);
+    }
+
+    .history-badge.correct {
+      background: var(--green);
+    }
+
+    .history-explanation {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pdf-btn {
+      width: 100%;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: background 0.2s;
+    }
+
+    .pdf-btn:hover {
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .export-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .export-bar button {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .export-bar button:hover {
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .export-bar button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #bulkExportBar {
+      display: none;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    #bulkExportBar button {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #bulkExportBar button:hover {
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    @media print {
+      body {
+        background: white;
+        color: black;
+        padding: 20px;
+      }
+
+      .card {
+        border: 1px solid #ddd;
+        background: white;
+        break-inside: avoid;
+      }
+
+      .btn,
+      .pdf-btn,
+      .upload-area,
+      #inputCard,
+      #historyCard {
+        display: none !important;
+      }
+
+      .result-card {
+        display: block !important;
+      }
+
+      h1 {
+        color: #0066aa;
+      }
+
+      .result-section {
+        background: #f9f9f9;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">Awesome Math Lab · 정현경 연구실</div>
+      <h1>AI 수학 오답 분석기</h1>
+      <p>학생 풀이 사진을 업로드하면 AI가 오류 유형을 분석하고 오답노트를 생성합니다</p>
+      <button id="settingsToggleBtn" onclick="toggleSettings()" style="
+        margin-top:12px; background:transparent; border:1px solid var(--border);
+        color:var(--cyan); padding:6px 16px; border-radius:20px; cursor:pointer;
+        font-size:13px; transition:all 0.2s;
+      ">⚙️ API 설정</button>
+    </div>
+
+    <!-- API 키 설정 패널 -->
+    <div class="card" id="settingsCard" style="display:none;">
+      <div class="card-title">⚙️ API 키 설정</div>
+      <p style="font-size:13px;color:#a0b4c8;margin-bottom:16px;">
+        키는 이 브라우저에만 저장되며 외부로 전송되지 않습니다.
+      </p>
+
+      <!-- 서버 모드 토글 -->
+      <div style="background:#0a1628;border-radius:8px;margin-bottom:16px;border:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px;">
+          <label class="switch" style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;">
+            <input type="checkbox" id="serverModeToggle" onchange="onServerModeChange(this)"
+              style="opacity:0;width:0;height:0;">
+            <span style="position:absolute;cursor:pointer;inset:0;background:#1e3a5f;border-radius:24px;transition:.3s;"
+              id="serverModeSlider"></span>
+          </label>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--cyan);">🔒 서버 모드 (Next.js)</div>
+            <div style="font-size:11px;color:#aaa;margin-top:2px;">ON: /api/analyze 경유 — 키 완전 은닉 · 배포 환경 권장</div>
+            <div style="font-size:11px;color:#aaa;">OFF: 브라우저 직접 호출 — 로컬 전용</div>
+          </div>
+        </div>
+        <div id="inviteCodeContainer" style="display:none; padding: 0 12px 12px 12px; border-top: 1px dashed var(--border);">
+          <div class="form-row" style="margin-bottom:0; margin-top:10px;">
+            <label style="color:var(--cyan);">서버 접속 초대 코드</label>
+            <input type="password" id="inputInviteCode" placeholder="초대 코드 입력" style="background:#0d1b2a;">
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:12px;color:var(--cyan);font-weight:600;margin-bottom:4px;">── Claude (서버 모드 OFF 시 필수) ──</p>
+      <div class="form-row">
+        <label>Claude API 키</label>
+        <div style="display:flex;gap:8px;">
+          <input type="password" id="inputClaudeKey" placeholder="sk-ant-api03-..." style="flex:1;">
+          <button onclick="toggleKeyVisibility('inputClaudeKey', 'eyeBtn1')" id="eyeBtn1" style="
+            background:var(--card-bg);border:1px solid var(--border);color:var(--cyan);
+            padding:0 12px;border-radius:8px;cursor:pointer;font-size:16px;
+          ">👁</button>
+        </div>
+      </div>
+
+      <p style="font-size:12px;color:var(--cyan);font-weight:600;margin:12px 0 4px;">── Mathpix 수식 OCR (선택 — 미입력 시 Claude Vision 폴백) ──</p>
+      <div class="form-row">
+        <label>Mathpix App ID</label>
+        <input type="text" id="inputMathpixId" placeholder="yourapp.example.com">
+      </div>
+      <div class="form-row">
+        <label>Mathpix App Key</label>
+        <div style="display:flex;gap:8px;">
+          <input type="password" id="inputMathpixKey" placeholder="xxxxxxxxxxxxxxxxxxxxxxxx" style="flex:1;">
+          <button onclick="toggleKeyVisibility('inputMathpixKey','eyeBtn3')" id="eyeBtn3" style="
+            background:var(--card-bg);border:1px solid var(--border);color:var(--cyan);
+            padding:0 12px;border-radius:8px;cursor:pointer;font-size:16px;
+          ">👁</button>
+        </div>
+      </div>
+
+      <p style="font-size:12px;color:var(--cyan);font-weight:600;margin:12px 0 4px;">── Firebase (선택 — 이력 저장용) ──</p>
+      <div class="form-row">
+        <label>Firebase API 키</label>
+        <div style="display:flex;gap:8px;">
+          <input type="password" id="inputFirebaseKey" placeholder="AIzaSy..." style="flex:1;">
+          <button onclick="toggleKeyVisibility('inputFirebaseKey', 'eyeBtn2')" id="eyeBtn2" style="
+            background:var(--card-bg);border:1px solid var(--border);color:var(--cyan);
+            padding:0 12px;border-radius:8px;cursor:pointer;font-size:16px;
+          ">👁</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Firebase 프로젝트 ID</label>
+        <input type="text" id="inputFirebaseProjectId" placeholder="your-project-id">
+      </div>
+      <div class="form-row">
+        <label>Firebase Messaging Sender ID</label>
+        <input type="text" id="inputFirebaseSender" placeholder="925788626460">
+      </div>
+      <div class="form-row">
+        <label>Firebase App ID</label>
+        <input type="text" id="inputFirebaseAppId" placeholder="1:000000000000:web:xxxxxxxxxxxxxxxx">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button onclick="saveSettings()" style="
+          flex:1;background:var(--cyan);color:#0a1628;border:none;
+          padding:12px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;
+        ">💾 저장</button>
+        <button onclick="clearSettings()" style="
+          background:transparent;border:1px solid #e74c3c;color:#e74c3c;
+          padding:12px 20px;border-radius:8px;cursor:pointer;font-size:14px;
+        ">🗑 초기화</button>
+      </div>
+      <div id="settingsSavedMsg" style="display:none;color:#2ecc71;font-size:13px;margin-top:10px;text-align:center;">
+        ✅ 저장되었습니다
+      </div>
+    </div>
+
+    <!-- 입력 카드 (최대 5장 배치 분석) -->
+    <div class="card" id="inputCard">
+      <div class="card-title">풀이 정보 입력 <span style="font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;">— 최대 5장 동시 분석</span></div>
+      
+      <div class="form-row" style="background: rgba(0, 212, 255, 0.05); padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(0, 212, 255, 0.2); margin-bottom: 20px;">
+        <label style="color:var(--cyan); font-weight: 600; margin-bottom: 10px;">분석 모드 선택</label>
+        <div style="display:flex; gap: 16px; align-items: center;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text); font-size:14px;">
+            <input type="radio" name="analysisMode" value="error" checked> 오답 분석 👨‍🏫
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text); font-size:14px;">
+            <input type="radio" name="analysisMode" value="solve"> 직접 풀이 💡
+          </label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>학생 이름</label>
+        <input type="text" id="studentName" placeholder="예: 홍길동">
+      </div>
+      <div class="form-row">
+        <label>수학 풀이 사진 (최대 5장)</label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" id="imageFile" accept="image/*" multiple>
+          <div class="upload-icon">📷</div>
+          <div class="upload-text"><strong>클릭하여 사진 선택 (여러 장 가능)</strong> 혹은 드래그 앤 드롭<br>또는 Ctrl+V로 붙여넣기</div>
+        </div>
+      </div>
+      <!-- 업로드된 이미지 미리보기 그리드 -->
+      <div id="previewGrid" style="display:none;gap:12px;margin-bottom:16px;"></div>
+      <button class="btn" id="analyzeBtn">분석 시작</button>
+      <div class="spinner" id="spinner">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div id="spinnerMsg" style="margin-top:8px;">📷 손글씨 판독 중...</div>
+      </div>
+      <div id="progressBar" style="display:none;margin-top:12px;">
+        <div style="background:var(--border);border-radius:6px;height:8px;overflow:hidden;">
+          <div id="progressFill" style="background:var(--cyan);height:100%;width:0%;transition:width 0.5s;border-radius:6px;"></div>
+        </div>
+        <div id="progressText" style="font-size:12px;color:var(--muted);margin-top:6px;text-align:center;"></div>
+      </div>
+      <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <!-- 전체 저장 바 -->
+    <div id="bulkExportBar" style="display:none;">
+      <button onclick="downloadAllAsImages()">🖼️ 전체 이미지 저장</button>
+      <button onclick="downloadAllAsPDF()">📄 전체 PDF 저장</button>
+    </div>
+
+    <!-- 결과 컨테이너 (동적 생성) -->
+    <div id="resultsContainer"></div>
+
+    <!-- 분석 이력 -->
+    <div class="card" id="historyCard">
+      <div class="card-title">분석 이력</div>
+      <div id="historyList">
+        <div class="empty-state">아직 분석 이력이 없습니다</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // =============================================
+    // 쿠키 관련 유틸 함수 (초대 코드용)
+    // =============================================
+    function setCookie(name, value, days) {
+      let expires = "";
+      if (days) {
+        const date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toUTCString();
+      }
+      document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    }
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for(let i=0;i < ca.length;i++) {
+        let c = ca[i];
+        while (c.charAt(0)==' ') c = c.substring(1,c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+      }
+      return null;
+    }
+
+    // =============================================
+    // 설정값 — localStorage에서 로드 (하드코딩 금지)
+    // =============================================
+    function getSettings() {
+      return {
+        claudeKey:       localStorage.getItem('aml_claude_key') || '',
+        firebaseKey:     localStorage.getItem('aml_firebase_key') || '',
+        firebaseProject: localStorage.getItem('aml_firebase_project') || '',
+      };
+    }
+
+    // 초기 로드 시 입력 필드에 마스킹 표시
+    (function initSettingsUI() {
+      const s = getSettings();
+      if (s.claudeKey)       document.getElementById('inputClaudeKey').value         = s.claudeKey;
+      if (s.firebaseKey)     document.getElementById('inputFirebaseKey').value       = s.firebaseKey;
+      if (s.firebaseProject) document.getElementById('inputFirebaseProjectId').value = s.firebaseProject;
+      const sender    = localStorage.getItem('aml_firebase_sender') || '';
+      const appid     = localStorage.getItem('aml_firebase_appid')  || '';
+      const mathpixId  = localStorage.getItem('aml_mathpix_id')  || '';
+      const mathpixKey = localStorage.getItem('aml_mathpix_key') || '';
+      const inviteCode = getCookie('invite_code') || localStorage.getItem('aml_invite_code') || '';
+      if (sender)     document.getElementById('inputFirebaseSender').value  = sender;
+      if (appid)      document.getElementById('inputFirebaseAppId').value   = appid;
+      if (mathpixId)  document.getElementById('inputMathpixId').value       = mathpixId;
+      if (mathpixKey) document.getElementById('inputMathpixKey').value      = mathpixKey;
+      if (inviteCode) document.getElementById('inputInviteCode').value      = inviteCode;
+
+      // 서버 모드 토글 초기화
+      const serverMode = localStorage.getItem('aml_server_mode') === 'true';
+      const toggle = document.getElementById('serverModeToggle');
+      const slider = document.getElementById('serverModeSlider');
+      toggle.checked = serverMode;
+      slider.style.background = serverMode ? 'var(--cyan)' : '#1e3a5f';
+      document.getElementById('inviteCodeContainer').style.display = serverMode ? 'block' : 'none';
+    })();
+
+    window.onServerModeChange = function(checkbox) {
+      const on = checkbox.checked;
+      localStorage.setItem('aml_server_mode', on ? 'true' : 'false');
+      document.getElementById('serverModeSlider').style.background = on ? 'var(--cyan)' : '#1e3a5f';
+      document.getElementById('inviteCodeContainer').style.display = on ? 'block' : 'none';
+    };
+
+
+    // =============================================
+    // Firebase 지연 초기화 — 실제 값이 있을 때만 연결
+    let db = null;
+
+    function getFirebaseDb() {
+      if (db) return db;
+      const key     = localStorage.getItem('aml_firebase_key')     || '';
+      const project = localStorage.getItem('aml_firebase_project') || '';
+      const sender  = localStorage.getItem('aml_firebase_sender')  || '';
+      const appid   = localStorage.getItem('aml_firebase_appid')   || '';
+      if (!key || !project) return null;
+      try {
+        const cfg = {
+          apiKey:            key,
+          authDomain:        `${project}.firebaseapp.com`,
+          projectId:         project,
+          storageBucket:     `${project}.firebasestorage.app`,
+          messagingSenderId: sender,
+          appId:             appid
+        };
+        const fbApp = initializeApp(cfg, 'aml-app');
+        db = getFirestore(fbApp);
+      } catch(e) {
+        console.warn('Firebase 초기화 실패:', e.message);
+        db = null;
+      }
+      return db;
+    }
+
+
+
+    // 1단계: 순수 OCR 프롬프트 — 형상 그대로 전사, 추론·교정 완전 금지
+    const PROMPT_OCR = `당신은 한국 고등학교 수학 풀이 전사 전문가입니다. 단 하나의 임무만 수행합니다.
+[임무] 이미지에 보이는 모든 수학 기호와 손글씨를 형상 그대로 LaTeX 텍스트로 완벽하게 전사하라.
+[이미지 영역 분리 — 최우선 수행]
+A. 인쇄 영역: 문제 발문 그대로 전사
+B. 손글씨 영역: 학생 풀이를 줄 순서대로 전사 (L1: ..., L2: ...)
+[한국 수학 손글씨 오독 방지 및 패턴 인식]
+1. Q(x), x, f(x) 기호 정확히 구분.
+2. 나눗셈 정리 구조: A = B·Q(x) + r(x) 형태에서 +r(x)는 괄호 바깥에 위치.
+3. 괄호 깊이: (A)(B) + C 형태에서 부호 위치 주의.
+4. [치명적 오류 - 등호(=)와 음수(-) 오독 절대 주의]
+   학생이 줄을 바꿔서 "= 숫자" 형태를 적을 때, 등호(=)를 음수(-)로 오독하는 경우가 매우 잦다. 
+   예: r(2/3) 계산 후 아랫줄에 "= 4/27"이라 적은 것을 "-4/27"로 오독하지 말 것. 
+   최종 답안 앞의 기호가 위 줄에서 이어지는 등호인지 마이너스인지, 앞선 괄호의 부호 곱셈 결과 등을 통해 한 번 더 점검하라.
+5. 학생이 선택지(① ② ③ ④ ⑤)에 체크한 답 번호가 있다면 반드시 [선택: ⑤] 형태로 기록.`;
+
+    // 2단계: 채점·분석 프롬프트 (CoT 구조 적용)
+    const PROMPT_ANALYZE_ERROR = `너는 27년 경력 수학 교사 어썸 정현경이야.
+[핵심 원칙]
+1. 학생 풀이가 수학적으로 올바르면 반드시 "정답"으로 판정하라.
+2. 소괄호(), 중괄호{} 등 괄호 형태의 차이나 단순 치환 생략은 오류가 아니다.
+3. [시각적 교차 검증 강제 - 중요] OCR 텍스트는 등호(=)를 음수 기호(-)로 오독하는 고질적 결함이 있다. 
+   최종 계산 결과가 틀렸다고 판단될 경우, OCR 텍스트를 절대 맹신하지 마라.
+   1) 네가 직접 산술 계산을 해보고, 
+   2) 반드시 첨부된 '원본 이미지'를 육안으로 재확인하여 판별하라.
+4. 학생이 선택지에 체크한 답과 너의 계산 답이 일치하면, 중간 단계의 미세한 오독을 무시하고 "정답"으로 판정하라.
+5. [발문 역추적 교정 - 최우선 수행] OCR 엔진은 문제지의 인쇄된 지수(예: x^2를 x^3으로)를 오독하는 경우가 잦다. 학생의 전개 과정(예: (x+2)(x-2) 인수분해)이 특정 식(x^2-4)을 정확히 가리키고 논리적으로 자연스럽다면, 학생이 틀린 것이 아니라 OCR이 문제 발문을 잘못 읽었을 확률이 100%다. 학생 풀이를 '오류'로 판정하기 전에 반드시 원본 이미지의 인쇄된 문제를 육안으로 재확인하여 전제 조건을 스스로 교정한 후 채점하라.
+[채점 순서 - Chain of Thought 필수]
+1단계: 발문 분석 및 목표식 도출 — 원본 이미지에서 인쇄체를 직접 읽어 OCR 오독 교정
+2단계: 학생의 식을 한 줄씩 따라가며 직접 전개/대입하여 검증
+3단계: 최종 계산 값의 부호(±)가 틀렸다고 의심될 경우, 직접 연산 및 원본 이미지 픽셀 재확인(Visual Check) 수행
+4단계: 검증 완료 후 JSON 출력
+[출력 규격]
+반드시 <thinking> 태그 안에서 모든 수학적 검증을 상세히 기록한 후, <r> 태그 안에 순수 JSON 객체만 출력.
+<thinking>
+1. 발문 재확인: OCR은 x^3-4라 했으나, 원본 이미지를 보니 x^2-4이다. 학생의 (x+2)(x-2) 인수분해와 일치. OCR 교정 완료.
+2. 검증: 학생의 각 단계 동치 확인...
+3. 부호 검증 필요 시: 직접 계산 + 이미지 확인...
+</thinking>
+<r>
+{
+  "error_type": "정답/논리오류/계산실수/독해오류",
+  "steps": [ {"step": 1, "content": "...", "is_correct": true} ],
+  "error_location": "없음",
+  "error_explanation": "학생이 이해할 수 있는 설명",
+  "correct_solution": "올바른 풀이 수식",
+  "correct_direction": "풀이 방향",
+  "good_points": "잘한 점",
+  "encouragement": "격려 메시지"
+}
+</r>`;
+
+    const PROMPT_ANALYZE_SOLVE = `너는 27년 경력 수학 교사 어썸 정현경이야.
+[핵심 원칙]
+1. 제시된 문제 사진과 수식 OCR 텍스트를 바탕으로, 문제를 가장 모범적이고 명확하게 풀어라.
+2. 단계별로 핵심 논리 전개를 수식과 함께 학생 친화적으로 설명하라.
+3. [시각적 교차 검증 강제 - 중요] OCR 텍스트는 간혹 지수나 작은 기호, 괄호 등을 오독하는 고질적 결함이 있다. 풀이를 시작하기 전에 반드시 원본 이미지의 문제를 다시 한 번 육안으로 확인하여 오독된 부분이 있다면 스스로 텍스트를 먼저 교정한 뒤 논리를 펼쳐라.
+
+[풀이 순서 - Chain of Thought 필수]
+1단계: 발문 파악 및 조건 정리 — 원본 이미지 인쇄체 재확인
+2단계: 문제 해결을 위한 핵심 아이디어 구상
+3단계: 수학적으로 완벽한 전개를 하나의 흐름으로 상세히 서술하여 정답 도출
+4단계: 검증 완료 후 JSON 출력
+
+[출력 규격]
+반드시 <thinking> 태그 안에서 문제 풀이를 위한 논리 구조를 생각하고, <r> 태그 안에 순수 JSON 객체만 출력하라.
+<thinking>
+1. 첫 번째 조건은...
+2. 따라서 사용되는 공식은...
+</thinking>
+<r>
+{
+  "mode": "solve",
+  "problem_understanding": "문제의 조건 및 구하고자 하는 것",
+  "full_solution": "여기에 수식과 서술형 설명을 결합하여, 끊김 없는 하나의 완전하고 상세한 전체 풀이 과정을 작성하라. (줄바꿈 적극 활용)",
+  "final_answer": "최종 도출된 정답",
+  "core_concept": "적용된 주요 수학 개념 정리",
+  "encouragement": "선생님의 격려 및 조언 한마디 (옵션)"
+}
+</r>`;
+
+    // ── 배치 분석 지원 (최대 5장) ──────────────────────────────
+    let uploadedFiles = []; // [{file, preview}]
+    const MAX_FILES = 5;
+
+    function updatePreviewGrid() {
+      const grid = document.getElementById('previewGrid');
+      if (uploadedFiles.length === 0) {
+        grid.style.display = 'none';
+        return;
+      }
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(140px, 1fr))';
+      grid.innerHTML = uploadedFiles.map((item, i) => `
+        <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px;position:relative;">
+          <img src="${item.preview}" style="width:100%;border-radius:6px;max-height:120px;object-fit:cover;">
+          <input type="text" class="prob-num-input" data-idx="${i}" placeholder="문제번호 ${i+1}" 
+            style="width:100%;margin-top:6px;padding:6px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+          <button onclick="removeFile(${i})" style="position:absolute;top:4px;right:4px;background:var(--red);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:22px;">✕</button>
+        </div>
+      `).join('');
+    }
+
+    window.removeFile = function(idx) {
+      uploadedFiles.splice(idx, 1);
+      updatePreviewGrid();
+    };
+
+    function addFiles(fileList) {
+      for (const file of fileList) {
+        if (!file.type.startsWith('image/')) continue;
+        if (uploadedFiles.length >= MAX_FILES) {
+          alert(`최대 ${MAX_FILES}장까지 업로드할 수 있습니다.`);
+          break;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          uploadedFiles.push({ file, preview: ev.target.result });
+          updatePreviewGrid();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // 1. 파일 선택
+    document.getElementById('imageFile').addEventListener('change', function(e) {
+      addFiles(e.target.files);
+      this.value = '';
+    });
+
+    // 2. 드래그 앤 드롭
+    const uploadArea = document.getElementById('uploadArea');
+    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', (e) => { e.preventDefault(); uploadArea.classList.remove('dragover'); });
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      if (e.dataTransfer.files) addFiles(e.dataTransfer.files);
+    });
+
+    // 3. 클립보드 붙여넣기
+    document.addEventListener('paste', (e) => {
+      const items = e.clipboardData || e.originalEvent.clipboardData;
+      for (let i = 0; i < items.items.length; i++) {
+        if (items.items[i].type.indexOf('image/') !== -1) {
+          addFiles([items.items[i].getAsFile()]);
+          e.preventDefault();
+          break;
+        }
+      }
+    });
+
+    // ── 배치 분석 시작 ──────────────────────────────
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+      const name = document.getElementById('studentName').value.trim();
+      const errorBox = document.getElementById('errorBox');
+      const btn = document.getElementById('analyzeBtn');
+      const container = document.getElementById('resultsContainer');
+
+      errorBox.style.display = 'none';
+      container.innerHTML = '';
+
+      if (!name) { showError('학생 이름을 입력해주세요.'); return; }
+      if (uploadedFiles.length === 0) { showError('풀이 사진을 선택해주세요.'); return; }
+      const CLAUDE_API_KEY = localStorage.getItem('aml_claude_key') || '';
+      if (!CLAUDE_API_KEY) {
+        showError('⚙️ API 설정에서 Claude API 키를 먼저 입력해주세요.');
+        document.getElementById('settingsCard').style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('progressBar').style.display = 'block';
+
+      const analysisMode = document.querySelector('input[name="analysisMode"]:checked').value;
+      const probInputs = document.querySelectorAll('.prob-num-input');
+      const total = uploadedFiles.length;
+
+      for (let i = 0; i < total; i++) {
+        const probNum = probInputs[i]?.value.trim() || `문제 ${i+1}`;
+        const pct = Math.round(((i) / total) * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressText').textContent = `${i+1}/${total} 처리 중: ${probNum}`;
+        updateSpinnerMsg(`📷 ${i+1}/${total} 이미지 판독 중...`);
+
+        try {
+          const { base64, mediaType } = await resizeImage(uploadedFiles[i].file);
+          const result = await callClaude(base64, mediaType, probNum, analysisMode);
+          renderResultCard(i, probNum, result, uploadedFiles[i].preview);
+          await saveHistory(name, probNum, result);
+        } catch (err) {
+          // 에러 발생 시 해당 문제만 에러 카드로 표시하고 계속 진행
+          renderErrorCard(i, probNum, err.message, uploadedFiles[i].preview);
+        }
+      }
+
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('progressText').textContent = `✅ ${total}개 문제 분석 완료!`;
+      btn.disabled = false;
+      document.getElementById('spinner').style.display = 'none';
+      // 전체 저장 바 표시
+      if (document.querySelectorAll('#resultsContainer .result-card').length > 0) {
+        document.getElementById('bulkExportBar').style.display = 'flex';
+      }
+      await loadHistory();
+    });
+
+    // ── 결과 카드 동적 생성 ──────────────────────────────
+    function renderResultCard(index, probNum, data, previewSrc) {
+      const container = document.getElementById('resultsContainer');
+      const cardId = `result-${index}`;
+      
+      const isSolveMode = data._analysisMode === 'solve';
+      
+      let bdgClass;
+      let titleBadge;
+      if (isSolveMode) {
+        bdgClass = 'correct';
+        titleBadge = '💡 직접 풀이 완료';
+      } else {
+        const cls = { '논리오류': 'logic', '계산실수': 'calc', '독해오류': 'read', '정답': 'correct' };
+        bdgClass = cls[data.error_type] || 'correct';
+        titleBadge = data.error_type;
+      }
+
+      const stepsHtml = (data.steps && data.steps.length > 0) ? data.steps.map(s => {
+        const isCorrect = s.is_correct;
+        return `<div class="step-item ${isCorrect ? '' : 'incorrect'}">
+          <span class="step-badge ${isCorrect ? 'correct' : 'incorrect'}">${isCorrect ? '정상' : '오류'}</span>
+          <div class="step-content"><strong>단계 ${s.step}:</strong> ${esc(s.content)}</div>
+        </div>`;
+      }).join('') : '<p>-</p>';
+
+      // OCR 섹션
+      let ocrHtml = '';
+      if (data._ocr) {
+        const engineLabel = data._ocrEngine === 'Mathpix'
+          ? '<span style="background:#00b386;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">📐 Mathpix</span>'
+          : '<span style="background:#6c5ce7;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;">🤖 Claude Vision</span>';
+        ocrHtml = `<div class="result-section">
+          <h3 style="cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="document.getElementById('ocr-${index}').style.display = document.getElementById('ocr-${index}').style.display==='none'?'block':'none'">
+            📝 손글씨 판독 원문 ${engineLabel} <span style="font-size:12px;opacity:0.6;margin-left:auto;">▼ 펼치기</span>
+          </h3>
+          <pre id="ocr-${index}" style="display:none;white-space:pre-wrap;font-size:13px;color:#a0c4d8;line-height:1.7;margin-top:8px;">${esc(data._ocr)}</pre>
+        </div>`;
+      }
+
+      let contentHtml = '';
+      if (isSolveMode) {
+        contentHtml = `
+          <div class="result-section"><h3>📝 문제 파악</h3><p>${esc(data.problem_understanding || '-')}</p></div>
+          <div class="result-section"><h3>💡 상세 풀이</h3><p style="white-space: pre-wrap; line-height: 1.8;">${esc(data.full_solution || '-')}</p></div>
+          <div class="result-section correct-sol"><h3>🎯 최종 정답</h3><p>${esc(data.final_answer || '-')}</p></div>
+          <div class="result-section good"><h3>📚 핵심 개념</h3><p>${esc(data.core_concept || '-')}</p></div>
+          <div class="result-section encourage"><h3>선생님 한마디</h3><p>${esc(data.encouragement || '-')}</p></div>
+        `;
+      } else {
+        contentHtml = `
+          <div class="result-section"><h3>단계별 풀이 분석</h3><div>${stepsHtml}</div></div>
+          <div class="result-section logic"><h3>오류 위치</h3><p>${esc(data.error_location || '-')}</p></div>
+          <div class="result-section logic"><h3>오류 설명</h3><p>${esc(data.error_explanation || '-')}</p></div>
+          <div class="result-section correct-sol"><h3>올바른 풀이</h3><p>${esc(data.correct_solution || '-')}</p></div>
+          <div class="result-section correct-sol"><h3>올바른 풀이 방향</h3><p>${esc(data.correct_direction || '-')}</p></div>
+          <div class="result-section good"><h3>잘한 점</h3><p>${esc(data.good_points || '-')}</p></div>
+          <div class="result-section encourage"><h3>선생님 한마디</h3><p>${esc(data.encouragement || '-')}</p></div>
+        `;
+      }
+
+      const card = document.createElement('div');
+      card.className = 'card result-card';
+      card.style.display = 'block';
+      card.id = cardId;
+      card.innerHTML = `
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📄 ${esc(probNum)}</span>
+          <img src="${previewSrc}" style="height:40px;border-radius:4px;border:1px solid var(--border);cursor:pointer;" 
+            onclick="this.style.height=this.style.height==='40px'?'200px':'40px'">
+        </div>
+        <div class="badge ${bdgClass}">${esc(titleBadge)}</div>
+        ${ocrHtml}
+        ${contentHtml}
+        <div class="export-bar">
+          <button onclick="downloadCardAsImage(${index}, '${esc(probNum)}')" id="imgBtn-${index}">🖼️ 이미지 저장</button>
+          <button onclick="downloadCardAsPDF(${index}, '${esc(probNum)}')" id="pdfBtn-${index}">📄 PDF 저장</button>
+        </div>
+        <div class="chat-container">
+          <div class="chat-header">💬 이 문제에 대해 질문하세요</div>
+          <div class="chat-box" id="chatBox-${index}"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput-${index}" placeholder="예: 왜 틀렸는지 더 자세히 설명해줘" 
+              onkeypress="if(event.key==='Enter')sendChat(${index})">
+            <button class="chat-btn" onclick="sendChat(${index})">전송</button>
+          </div>
+        </div>
+      `;
+      container.appendChild(card);
+
+      // KaTeX 렌더링
+      setTimeout(() => {
+        if (typeof renderMathInElement !== 'undefined') {
+          renderMathInElement(card, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false }
+            ],
+            throwOnError: false
+          });
+        }
+      }, 300);
+
+      // 스크롤
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // 챗 컨텍스트 저장
+      card._chatHistory = [];
+      card._analysisContext = data;
+    }
+
+    function renderErrorCard(index, probNum, errMsg, previewSrc) {
+      const container = document.getElementById('resultsContainer');
+      const card = document.createElement('div');
+      card.className = 'card result-card';
+      card.style.display = 'block';
+      card.innerHTML = `
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📄 ${esc(probNum)}</span>
+          <img src="${previewSrc}" style="height:40px;border-radius:4px;border:1px solid var(--border);">
+        </div>
+        <div class="badge logic">분석 실패</div>
+        <div class="result-section"><p style="color:var(--red);">${esc(errMsg)}</p></div>
+      `;
+      container.appendChild(card);
+    }
+
+    // ── 개별 챗봇 ──────────────────────────────
+    window.sendChat = async function(index) {
+      const input = document.getElementById(`chatInput-${index}`);
+      const box = document.getElementById(`chatBox-${index}`);
+      const card = document.getElementById(`result-${index}`);
+      const text = input.value.trim();
+      if (!text || !card) return;
+
+      // 유저 메시지
+      const userDiv = document.createElement('div');
+      userDiv.className = 'chat-msg user';
+      userDiv.innerHTML = esc(text).replace(/\n/g, '<br>');
+      box.appendChild(userDiv);
+      input.value = '';
+      
+      card._chatHistory.push({ role: 'user', content: text });
+
+      try {
+        const systemPrompt = "너는 27년 경력 수학 교사 정현경이야. 방금 학생 풀이를 분석했고 학생이 추가 질문을 하고 있어. 친절하고 명확하게 답해줘. 수학 수식은 LaTeX로 표현해줘.\n\n[분석결과]\n" + JSON.stringify(card._analysisContext);
+        
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'x-api-key': localStorage.getItem('aml_claude_key') || '',
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 2048,
+            system: systemPrompt,
+            messages: card._chatHistory
+          })
+        });
+
+        if (!res.ok) throw new Error('채팅 답변 요청 실패');
+        const data = await res.json();
+        const aiText = data.content[0].text.trim();
+        
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'chat-msg ai';
+        aiDiv.innerHTML = esc(aiText).replace(/\n/g, '<br>');
+        box.appendChild(aiDiv);
+        box.scrollTop = box.scrollHeight;
+
+        card._chatHistory.push({ role: 'assistant', content: aiText });
+
+        if (typeof renderMathInElement !== 'undefined') {
+          renderMathInElement(aiDiv, {
+            delimiters: [
+              { left: '$$', right: '$$', display: true },
+              { left: '$', right: '$', display: false },
+              { left: '\\(', right: '\\)', display: false },
+              { left: '\\[', right: '\\]', display: true }
+            ],
+            throwOnError: false
+          });
+        }
+      } catch (err) {
+        showError(err.message);
+      }
+    };
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function resizeImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.src = e.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            const MIN = 1000;
+            const MAX = 2000;
+            
+            if (Math.max(w, h) < MIN) {
+              if (w > h) { h = Math.round(h * MIN / w); w = MIN; }
+              else { w = Math.round(w * MIN / h); h = MIN; }
+            } else if (Math.max(w, h) > MAX) {
+              if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+              else { w = Math.round(w * MAX / h); h = MAX; }
+            }
+            
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+
+            let data = canvas.toDataURL('image/png');
+            let mediaType = 'image/png';
+            if (data.length > 1500000) {
+              let q = 0.92;
+              data = canvas.toDataURL('image/jpeg', q);
+              mediaType = 'image/jpeg';
+              while (data.length > 1200000 && q > 0.3) {
+                q -= 0.08;
+                data = canvas.toDataURL('image/jpeg', q);
+              }
+            }
+            resolve({ base64: data.split(',')[1], mediaType });
+          };
+          img.onerror = reject;
+        };
+      });
+    }
+
+    // callClaudeRaw, callClaude 등은 기존 유지 (problemNum 파라미터 추가)
+    async function callClaudeRaw(messages, maxTokens = 2048, systemPrompt = null) {
+      const body = {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: maxTokens,
+        messages
+      };
+      if (systemPrompt) body.system = systemPrompt;
+      
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': localStorage.getItem('aml_claude_key') || '',
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err?.error?.message || '';
+        if (msg.includes('credit')) throw new Error('크레딧이 부족합니다.');
+        if (res.status === 401) throw new Error('API 키가 올바르지 않습니다.');
+        throw new Error(`API 오류 (${res.status}): ${msg || '잠시 후 다시 시도'}`);
+      }
+
+      const data = await res.json();
+      return data.content[0].text.trim();
+    }
+
+    async function executeMathpixOCR(base64Image) {
+      const appId  = localStorage.getItem('aml_mathpix_id')  || '';
+      const appKey = localStorage.getItem('aml_mathpix_key') || '';
+      if (!appId || !appKey) throw new Error('Mathpix 키를 먼저 입력해주세요.');
+      const response = await fetch('https://api.mathpix.com/v3/text', {
+        method: 'POST',
+        headers: { 'app_id': appId, 'app_key': appKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ src: `data:image/jpeg;base64,${base64Image}`, formats: ['text'], math_inline_delimiters: ['$', '$'], math_display_delimiters: ['$$', '$$'] })
+      });
+      if (!response.ok) throw new Error('Mathpix 추출 실패');
+      const data = await response.json();
+      return data.text;
+    }
+
+    async function fallbackClaudeOCR(base64Image, mediaType = 'image/jpeg') {
+      return await callClaudeRaw([{
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT_OCR },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } }
+        ]
+      }], 2048);
+    }
+
+    async function callClaude(base64Image, mediaType = 'image/jpeg', problemNum = '', analysisMode = 'error') {
+      const mathpixId  = localStorage.getItem('aml_mathpix_id')  || '';
+      const serverMode = localStorage.getItem('aml_server_mode') === 'true';
+
+      if (serverMode) {
+        updateSpinnerMsg('🔒 서버: 처리 중...');
+        const inviteCode = getCookie('invite_code') || localStorage.getItem('aml_invite_code') || '';
+        
+        const apiRes = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-invite-code': encodeURIComponent(inviteCode)
+          },
+          body: JSON.stringify({ base64Image, problemNum, mediaType, analysisMode })
+        });
+        if (!apiRes.ok) throw new Error((await apiRes.json().catch(()=>({}))).error || `서버 오류 (초대 코드를 확인하세요)`);
+        const resJson = await apiRes.json();
+        resJson._analysisMode = analysisMode;
+        return resJson;
+      }
+
+      let ocrText = '';
+      if (mathpixId) {
+        updateSpinnerMsg('📐 Mathpix: 수식 추출 중...');
+        ocrText = await executeMathpixOCR(base64Image);
+      } else {
+        updateSpinnerMsg('📷 Claude Vision: 이미지 판독 중...');
+        ocrText = await fallbackClaudeOCR(base64Image, mediaType);
+      }
+
+      updateSpinnerMsg(analysisMode === 'solve' ? '💡 Claude: 풀이 생성 중...' : '🔍 Claude: 논리 흐름 분석 중...');
+      
+      const isSolveMode = analysisMode === 'solve';
+      const promptToUse = isSolveMode ? PROMPT_ANALYZE_SOLVE : PROMPT_ANALYZE_ERROR;
+      const instructionText = isSolveMode 
+        ? '위 OCR 텍스트와 첨부 이미지를 바탕으로 수학 문제를 이해하기 쉽고 명확하게 풀어주세요. JSON만 출력하세요.'
+        : '위 OCR 텍스트와 첨부 이미지를 바탕으로 학생 풀이를 분석하고, JSON만 출력하세요.';
+
+      const userMsg = `[문제 번호] ${problemNum || '미입력'}
+
+⚠️ 아래 OCR 텍스트에는 판독 오류가 있을 수 있습니다. 반드시 첨부된 이미지 원본과 대조하세요.
+
+[${mathpixId ? 'Mathpix OCR 결과' : 'Claude Vision OCR 결과'}]
+${ocrText}
+
+${instructionText}`;
+
+      const jsonText = await callClaudeRaw([{
+        role: 'user',
+        content: [
+          { type: 'text', text: userMsg },
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64Image } }
+        ]
+      }], 8192, promptToUse);
+
+      // JSON 추출: 여러 전략
+      console.log('[DEBUG] 응답 앞200자:', jsonText.substring(0, 200));
+      
+      let parsed = null;
+      try { parsed = JSON.parse(jsonText); } catch(e1) {
+        const resultMatch = jsonText.match(/<r>([\s\S]*?)<\/result>/);
+        if (resultMatch) try { parsed = JSON.parse(resultMatch[1].trim()); } catch(e2) {}
+        if (!parsed) {
+          const rMatch = jsonText.match(/<r>([\s\S]*?)<\/r>/);
+          if (rMatch) try { parsed = JSON.parse(rMatch[1].trim()); } catch(e2) {}
+        }
+        if (!parsed) {
+          const braceMatch = jsonText.match(/\{[\s\S]*\}/);
+          if (braceMatch) try { parsed = JSON.parse(braceMatch[0]); } catch(e3) {}
+        }
+        if (!parsed) {
+          const codeMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+          if (codeMatch) try { parsed = JSON.parse(codeMatch[1].trim()); } catch(e4) {}
+        }
+      }
+      
+      if (!parsed) {
+        console.error('[FATAL] JSON 파싱 실패:', jsonText);
+        throw new Error('AI 응답 파싱 실패. F12 콘솔 확인.');
+      }
+      
+      parsed._ocr = ocrText;
+      parsed._ocrEngine = mathpixId ? 'Mathpix' : 'Claude Vision';
+      parsed._analysisMode = analysisMode;
+      return parsed;
+    }
+
+    function toggleOcr() {}
+    function updateSpinnerMsg(msg) {
+      const el = document.getElementById('spinnerMsg');
+      if (el) el.textContent = msg;
+    }
+
+    // ── 이미지/PDF 저장 함수 ──────────────────────────────
+    function getExportableCard(index) {
+      const card = document.getElementById(`result-${index}`);
+      if (!card) return null;
+      // 채팅/버튼 영역 제외한 클론 생성
+      const clone = card.cloneNode(true);
+      clone.querySelectorAll('.chat-container, .export-bar').forEach(el => el.remove());
+      clone.style.padding = '28px';
+      clone.style.background = '#1b263b';
+      clone.style.color = '#e0e1dd';
+      clone.style.borderRadius = '14px';
+      clone.style.border = '1px solid #2d3f55';
+      return clone;
+    }
+
+    window.downloadCardAsImage = async function(index, probNum) {
+      const btn = document.getElementById(`imgBtn-${index}`);
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ 캡처 중...'; }
+      try {
+        const card = document.getElementById(`result-${index}`);
+        // 채팅/버튼 영역 일시 숨김
+        const hideEls = card.querySelectorAll('.chat-container, .export-bar');
+        hideEls.forEach(el => el.style.display = 'none');
+
+        const canvas = await html2canvas(card, {
+          backgroundColor: '#1b263b',
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+
+        hideEls.forEach(el => el.style.display = '');
+
+        const link = document.createElement('a');
+        link.download = `분석결과_${probNum}_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (e) {
+        alert('이미지 저장 실패: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🖼️ 이미지 저장'; }
+      }
+    };
+
+    window.downloadCardAsPDF = async function(index, probNum) {
+      const btn = document.getElementById(`pdfBtn-${index}`);
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ PDF 생성 중...'; }
+      try {
+        const card = document.getElementById(`result-${index}`);
+        const hideEls = card.querySelectorAll('.chat-container, .export-bar');
+        hideEls.forEach(el => el.style.display = 'none');
+
+        await html2pdf().set({
+          margin: [10, 10, 10, 10],
+          filename: `분석결과_${probNum}_${Date.now()}.pdf`,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, backgroundColor: '#1b263b', useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        }).from(card).save();
+
+        hideEls.forEach(el => el.style.display = '');
+      } catch (e) {
+        alert('PDF 저장 실패: ' + e.message);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '📄 PDF 저장'; }
+      }
+    };
+
+    window.downloadAllAsImages = async function() {
+      const cards = document.querySelectorAll('#resultsContainer .result-card');
+      for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const probNum = card.querySelector('.card-title span')?.textContent?.replace('📄 ', '') || `문제${i+1}`;
+        const hideEls = card.querySelectorAll('.chat-container, .export-bar');
+        hideEls.forEach(el => el.style.display = 'none');
+
+        try {
+          const canvas = await html2canvas(card, {
+            backgroundColor: '#1b263b',
+            scale: 2,
+            useCORS: true,
+            logging: false
+          });
+          const link = document.createElement('a');
+          link.download = `분석결과_${probNum}_${Date.now()}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        } catch (e) { console.warn(`${probNum} 이미지 저장 실패:`, e); }
+
+        hideEls.forEach(el => el.style.display = '');
+        await new Promise(r => setTimeout(r, 500)); // 연속 다운로드 딜레이
+      }
+    };
+
+    window.downloadAllAsPDF = async function() {
+      const cards = document.querySelectorAll('#resultsContainer .result-card');
+      if (cards.length === 0) return;
+
+      // 전체 결과를 하나의 PDF로 병합
+      const wrapper = document.createElement('div');
+      wrapper.style.background = '#1b263b';
+      wrapper.style.padding = '20px';
+
+      cards.forEach((card, i) => {
+        const clone = card.cloneNode(true);
+        clone.querySelectorAll('.chat-container, .export-bar').forEach(el => el.remove());
+        clone.style.marginBottom = '24px';
+        clone.style.pageBreakAfter = 'always';
+        wrapper.appendChild(clone);
+      });
+
+      document.body.appendChild(wrapper);
+      try {
+        await html2pdf().set({
+          margin: [10, 10, 10, 10],
+          filename: `전체분석결과_${Date.now()}.pdf`,
+          image: { type: 'jpeg', quality: 0.92 },
+          html2canvas: { scale: 2, backgroundColor: '#1b263b', useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css'], before: '.result-card' }
+        }).from(wrapper).save();
+      } catch (e) {
+        alert('전체 PDF 저장 실패: ' + e.message);
+      } finally {
+        document.body.removeChild(wrapper);
+      }
+    };
+    // ────────────────────────────────────────────────
+
+    async function saveHistory(name, num, data) {
+      try {
+        const fireDb = getFirebaseDb();
+        if (!fireDb) return null;
+        
+        const isSolveMode = data._analysisMode === 'solve';
+        const eType = isSolveMode ? '문제풀이' : (data.error_type || '');
+        const eLoc = isSolveMode ? '' : (data.error_location || '');
+        const eExpl = isSolveMode ? (data.problem_understanding || '') : (data.error_explanation || '');
+        const cSol = isSolveMode ? ((data.full_solution ? data.full_solution + '\\n\\n정답: ' + data.final_answer : data.final_answer) || '') : (data.correct_solution || '');
+        const cDir = isSolveMode ? (data.core_concept || '') : (data.correct_direction || '');
+        const gPts = isSolveMode ? '' : (data.good_points || '');
+
+        const docRef = await addDoc(collection(fireDb, 'analyses'), {
+          studentName: name || '', problemNumber: num || '', errorType: eType,
+          errorLocation: eLoc, errorExplanation: eExpl,
+          correctSolution: cSol, correctDirection: cDir,
+          goodPoints: gPts, encouragement: data.encouragement || '',
+          chatHistory: [], timestamp: serverTimestamp()
+        });
+        return docRef.id;
+      } catch (e) { console.warn('Firebase 저장 실패:', e); return null; }
+    }
+
+    async function loadHistory() {
+      try {
+        const fireDb = getFirebaseDb();
+        if (!fireDb) { document.getElementById('historyList').innerHTML = '<div class="empty-state">Firebase 미설정 — 이력 저장 비활성화</div>'; return; }
+        const q = query(collection(fireDb, 'analyses'), orderBy('timestamp', 'desc'));
+        const snap = await getDocs(q);
+        const list = document.getElementById('historyList');
+        if (snap.empty) { list.innerHTML = '<div class="empty-state">아직 분석 이력이 없습니다</div>'; return; }
+        const cls = { '논리오류': 'logic', '계산실수': 'calc', '독해오류': 'read', '정답': 'correct' };
+        list.innerHTML = '';
+        snap.forEach(doc => {
+          const d = doc.data();
+          let dateStr = '';
+          if (d.timestamp) { const dt = d.timestamp.toDate(); dateStr = `${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`; }
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          div.innerHTML = `<div class="history-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <div style="flex:1;"><div class="history-meta"><span class="history-name">${esc(d.studentName)} · ${esc(d.problemNumber)}</span><span class="history-date">${dateStr}</span></div>
+            <div><span class="history-badge ${cls[d.errorType]||'correct'}">${esc(d.errorType)}</span><span class="history-explanation">${esc(d.errorExplanation||'')}</span></div></div>
+            <div class="arrow">▼</div></div>
+            <div class="history-details">${d.correctSolution ? `<p style="font-size:13px;margin-top:8px;">${esc(d.correctSolution)}</p>` : ''}</div>`;
+          list.appendChild(div);
+        });
+      } catch (e) { console.warn('이력 로드 실패:', e); }
+    }
+
+    function esc(str) {
+      return String(str || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // ── 설정 패널 함수 ──────────────────────────────
+    window.toggleSettings = function() {
+      const card = document.getElementById('settingsCard');
+      const isHidden = card.style.display === 'none';
+      card.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    window.saveSettings = function() {
+      const claudeKey    = document.getElementById('inputClaudeKey').value.trim();
+      const firebaseKey  = document.getElementById('inputFirebaseKey').value.trim();
+      const projectId    = document.getElementById('inputFirebaseProjectId').value.trim();
+      const sender       = document.getElementById('inputFirebaseSender').value.trim();
+      const appId        = document.getElementById('inputFirebaseAppId').value.trim();
+      const mathpixId    = document.getElementById('inputMathpixId').value.trim();
+      const mathpixKey   = document.getElementById('inputMathpixKey').value.trim();
+      const inviteCode   = document.getElementById('inputInviteCode').value.trim();
+
+      if (claudeKey)   localStorage.setItem('aml_claude_key', claudeKey);
+      if (firebaseKey) localStorage.setItem('aml_firebase_key', firebaseKey);
+      if (projectId)   localStorage.setItem('aml_firebase_project', projectId);
+      if (sender)      localStorage.setItem('aml_firebase_sender', sender);
+      if (appId)       localStorage.setItem('aml_firebase_appid', appId);
+      if (mathpixId)   localStorage.setItem('aml_mathpix_id', mathpixId);
+      if (mathpixKey)  localStorage.setItem('aml_mathpix_key', mathpixKey);
+      
+      if (inviteCode) {
+        localStorage.setItem('aml_invite_code', inviteCode);
+        setCookie('invite_code', inviteCode, 365); // 1년 유지
+      } else {
+        localStorage.removeItem('aml_invite_code');
+        setCookie('invite_code', '', -1); // 쿠키 삭제
+      }
+
+      const msg = document.getElementById('settingsSavedMsg');
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    };
+
+    window.clearSettings = function() {
+      if (!confirm('저장된 모든 설정과 API 키를 삭제할까요?')) return;
+      ['aml_claude_key','aml_firebase_key','aml_firebase_project','aml_firebase_sender','aml_firebase_appid',
+       'aml_mathpix_id','aml_mathpix_key','aml_invite_code']
+        .forEach(k => localStorage.removeItem(k));
+      setCookie('invite_code', '', -1);
+      
+      document.getElementById('inputClaudeKey').value = '';
+      document.getElementById('inputFirebaseKey').value = '';
+      document.getElementById('inputFirebaseProjectId').value = '';
+      document.getElementById('inputFirebaseSender').value = '';
+      document.getElementById('inputFirebaseAppId').value = '';
+      document.getElementById('inputMathpixId').value = '';
+      document.getElementById('inputMathpixKey').value = '';
+      document.getElementById('inputInviteCode').value = '';
+      
+      alert('초기화 완료. 페이지를 새로고침해주세요.');
+    };
+
+    window.toggleKeyVisibility = function(inputId, btnId) {
+      const input = document.getElementById(inputId);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    };
+    // ────────────────────────────────────────────────
+
+    loadHistory();
+  </script>
+</body>
+
+</html>

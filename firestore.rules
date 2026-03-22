@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /analyses/{docId} {
+      allow read, write: if true;  // MVP — 추후 인증 강화
+    }
+    match /usage/{docId} {
+      allow read, write: if true;  // MVP — 추후 Admin SDK로 전환 권장
+    }
+  }
+}
