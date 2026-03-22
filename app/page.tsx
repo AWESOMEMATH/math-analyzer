@@ -253,12 +253,26 @@ export default function Home() {
   useEffect(() => { if (isAuthenticated) loadHistory() }, [isAuthenticated])
 
   // ── 인증 처리 ──
-  const handleAuth = () => {
+  const handleAuth = async () => {
     if (!inviteCode.trim()) { setAuthError('초대 코드를 입력해주세요.'); return }
-    setCookie('invite_code', encodeURIComponent(inviteCode.trim()), 30)
-    localStorage.setItem('aml_invite_code', inviteCode.trim())
-    setIsAuthenticated(true)
-    setAuthError('')
+    
+    try {
+      const res = await fetch('/api/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode.trim() })
+      })
+      
+      if (res.ok) {
+        localStorage.setItem('aml_invite_code', inviteCode.trim())
+        setIsAuthenticated(true)
+        setAuthError('')
+      } else {
+        setAuthError('유효하지 않은 초대 코드입니다.')
+      }
+    } catch {
+      setAuthError('인증 서버와 통신할 수 없습니다.')
+    }
   }
 
   // ── 파일 추가 ──
