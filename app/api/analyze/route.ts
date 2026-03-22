@@ -18,10 +18,19 @@ B. 손글씨 영역: 학생 풀이를 줄 순서대로 전사 (L1: ..., L2: ...)
    예: r(2/3) 계산 후 아랫줄에 "= 4/27"이라 적은 것을 "-4/27"로 오독하지 말 것. 
    최종 답안 앞의 기호가 위 줄에서 이어지는 등호인지 마이너스인지, 앞선 괄호의 부호 곱셈 결과 등을 통해 한 번 더 점검하라.
 5. 학생이 선택지(① ② ③ ④ ⑤)에 체크한 답 번호가 있다면 반드시 [선택: ⑤] 형태로 기록.
-6. [지수 오독 절대 주의] x², x³, x⁴ 등 인쇄된 위첨자 지수를 정확히 구분하라. 
-   특히 x²과 x³은 형태가 유사하여 오독이 잦다. 
-   문제 발문의 지수는 반드시 2회 이상 확인하고, 
-   학생 풀이에서 사용한 지수와 불일치 시 "학생이 틀린 것"이 아니라 "내가 오독한 것"일 가능성을 먼저 의심하라.
+6. [지수 판독 — 이중 확인 필수] 
+   x², x³, x⁴ 등 위첨자 지수는 가장 오독이 잦은 기호다.
+   모든 지수를 전사할 때 반드시 아래 절차를 따르라:
+   a) 해당 지수를 처음 읽는다.
+   b) 주변 맥락(인수분해 가능성, 선택지, 학생 풀이)과 대조한다.
+   c) 예: x²-4는 (x+2)(x-2)로 인수분해 가능하지만, x³-4는 이렇게 인수분해 불가.
+      학생이 (x+2)(x-2)를 사용했다면 원문은 x²-4일 확률이 극히 높다.
+   d) 최종 전사 시 모든 지수를 명시적으로 표기: "x^2", "x^3" 등으로 반드시 구분.
+
+7. [인쇄체 vs 손글씨 지수 교차검증]
+   인쇄된 문제의 지수와 학생 손글씨의 지수가 서로 다르게 읽힌다면,
+   인쇄체를 한 번 더 확대해서 확인하라.
+   인쇄체 폰트에서 2와 3은 상단 곡선 형태로 구분 가능하다.
 `
 
 const PROMPT_ANALYZE_ERROR = `너는 27년 경력 수학 교사 어썸 정현경이야.
@@ -134,6 +143,25 @@ export async function POST(req: NextRequest) {
     })
     const ocrText = ocrRes.content[0].type === 'text' ? ocrRes.content[0].text : ''
 
+    const verifyRes = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: `아래 OCR 결과에서 지수(위첨자) 표기가 정확한지 원본 이미지와 대조하여 검증하라.
+틀린 지수가 있다면 수정된 전체 OCR 텍스트를 출력하라.
+틀린 지수가 없다면 "VERIFIED"라고만 출력하라.
+
+[OCR 결과]
+${ocrText}` },
+          { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+        ]
+      }]
+    })
+    const verifyText = verifyRes.content[0].type === 'text' ? verifyRes.content[0].text : ''
+    const finalOcrText = verifyText.trim() === 'VERIFIED' ? ocrText : verifyText
+
     // 2단계: 분석
     const isSolve = analysisMode === 'solve'
     const instruction = isSolve
@@ -145,7 +173,7 @@ export async function POST(req: NextRequest) {
 ⚠️ 아래 OCR 텍스트에는 판독 오류가 있을 수 있습니다. 반드시 첨부된 이미지 원본과 대조하세요.
 
 [Claude Vision OCR 결과]
-${ocrText}
+${finalOcrText}
 
 ${instruction}`
 
@@ -171,7 +199,7 @@ ${instruction}`
 
     return NextResponse.json({
       ...parsed,
-      _ocr: ocrText,
+      _ocr: finalOcrText,
       _ocrEngine: 'Claude Vision',
       _analysisMode: analysisMode,
       used: usage.used,
