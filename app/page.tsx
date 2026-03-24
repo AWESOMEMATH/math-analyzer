@@ -240,29 +240,7 @@ export default function Home() {
     if (saved) { setInviteCode(saved); setIsAuthenticated(true) }
   }, [])
 
-  // ── 클립보드 붙여넣기 ──
-  useEffect(() => {
-    const handler = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items
-      if (!items) return
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          const f = items[i].getAsFile()
-          if (f) {
-            if (uploadMode === 'separate' && analysisMode !== 'solve' && !problemFile) {
-              addProblemFile([f])
-            } else {
-              addFiles([f])
-            }
-            e.preventDefault()
-            break
-          }
-        }
-      }
-    }
-    document.addEventListener('paste', handler)
-    return () => document.removeEventListener('paste', handler)
-  }, [uploadedFiles, uploadMode, analysisMode, problemFile, addProblemFile, addFiles])
+
 
   // ── Firebase 이력 로드 ──
   useEffect(() => { if (isAuthenticated) loadHistory() }, [isAuthenticated])
@@ -319,6 +297,30 @@ export default function Home() {
       reader.readAsDataURL(file)
     }
   }, [])
+
+  // ── 클립보드 붙여넣기 ──
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const f = items[i].getAsFile()
+          if (f) {
+            if (uploadMode === 'separate' && analysisMode !== 'solve' && !problemFile) {
+              addProblemFile([f])
+            } else {
+              addFiles([f])
+            }
+            e.preventDefault()
+            break
+          }
+        }
+      }
+    }
+    document.addEventListener('paste', handler)
+    return () => document.removeEventListener('paste', handler)
+  }, [uploadedFiles, uploadMode, analysisMode, problemFile, addProblemFile, addFiles])
 
   // ── 파일 제거 ──
   const removeFile = (i: number) => {
