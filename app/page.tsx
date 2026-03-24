@@ -201,6 +201,7 @@ export default function Home() {
   // ── 업로드 ──
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [analysisMode, setAnalysisMode] = useState<'error' | 'solve'>('error')
+  const [isPremiumMode, setIsPremiumMode] = useState(false)
   const [studentName, setStudentName] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -641,18 +642,20 @@ export default function Home() {
 
           {/* 분석 버튼 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#a0c4d8', cursor: 'pointer', padding: '4px 0' }}>
+              <input
+                type="checkbox"
+                checked={isPremiumMode}
+                onChange={e => setIsPremiumMode(e.target.checked)}
+                style={{ cursor: 'pointer', accentColor: '#00d4ff' }}
+              />
+              🔬 정밀 분석 모드 (2022 개정 교육과정 적용)
+            </label>
             <button
-              onClick={() => handleAnalyze(false)} disabled={isAnalyzing}
-              style={{ width: '100%', padding: 15, background: isAnalyzing ? 'rgba(0,212,255,0.3)' : '#00d4ff', color: '#0d1b2a', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: isAnalyzing ? 'not-allowed' : 'pointer' }}
+              onClick={() => handleAnalyze(isPremiumMode)} disabled={isAnalyzing}
+              style={{ width: '100%', padding: 15, background: isAnalyzing ? 'rgba(0,212,255,0.3)' : '#00d4ff', color: '#0d1b2a', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: isAnalyzing ? 'not-allowed' : 'pointer', transition: 'background 0.2s' }}
             >
               {isAnalyzing ? '분석 중...' : '분석 시작'}
-            </button>
-            <button
-              onClick={() => handleAnalyze(true)} disabled={isAnalyzing}
-              className={`px-4 py-2 rounded-lg border-2 border-cyan-600 text-cyan-400 bg-transparent text-sm font-bold transition-all ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-cyan-900/40 cursor-pointer'}`}
-              title="교육과정 기반 정밀 분석"
-            >
-              {isAnalyzing ? '분석 중...' : '🔬 정밀 분석'}
             </button>
           </div>
 
