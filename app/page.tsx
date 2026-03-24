@@ -248,13 +248,21 @@ export default function Home() {
       for (let i = 0; i < items.length; i++) {
         if (items[i].type.startsWith('image/')) {
           const f = items[i].getAsFile()
-          if (f) { addFiles([f]); e.preventDefault(); break }
+          if (f) {
+            if (uploadMode === 'separate' && analysisMode !== 'solve' && !problemFile) {
+              addProblemFile([f])
+            } else {
+              addFiles([f])
+            }
+            e.preventDefault()
+            break
+          }
         }
       }
     }
     document.addEventListener('paste', handler)
     return () => document.removeEventListener('paste', handler)
-  }, [uploadedFiles])
+  }, [uploadedFiles, uploadMode, analysisMode, problemFile, addProblemFile, addFiles])
 
   // ── Firebase 이력 로드 ──
   useEffect(() => { if (isAuthenticated) loadHistory() }, [isAuthenticated])
