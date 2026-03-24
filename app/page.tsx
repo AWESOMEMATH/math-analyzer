@@ -640,12 +640,21 @@ export default function Home() {
           )}
 
           {/* 분석 버튼 */}
-          <button
-            onClick={handleAnalyze} disabled={isAnalyzing}
-            style={{ width: '100%', padding: 15, background: isAnalyzing ? 'rgba(0,212,255,0.3)' : '#00d4ff', color: '#0d1b2a', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: isAnalyzing ? 'not-allowed' : 'pointer', marginTop: 6 }}
-          >
-            {isAnalyzing ? '분석 중...' : '분석 시작'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+            <button
+              onClick={handleAnalyze} disabled={isAnalyzing}
+              style={{ width: '100%', padding: 15, background: isAnalyzing ? 'rgba(0,212,255,0.3)' : '#00d4ff', color: '#0d1b2a', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: isAnalyzing ? 'not-allowed' : 'pointer' }}
+            >
+              {isAnalyzing ? '분석 중...' : '분석 시작'}
+            </button>
+            <button
+              disabled
+              className="px-4 py-2 rounded-lg border-2 border-cyan-600 text-cyan-400 bg-transparent opacity-50 cursor-not-allowed text-sm"
+              title="교육과정 기반 정밀 분석 (준비 중)"
+            >
+              🔬 정밀 분석 (준비 중)
+            </button>
+          </div>
 
           {/* 프로그레스 */}
           {isAnalyzing && (
