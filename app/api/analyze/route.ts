@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
   try { inviteCode = decodeURIComponent(inviteCode) } catch {}
 
   const body = await req.json()
-  const { base64Image, mediaType = 'image/jpeg', problemNum = '', analysisMode = 'error' } = body
+  const { base64Image, mediaType = 'image/jpeg', problemNum = '', analysisMode = 'error', uploadMode = 'single', problemImage, problemMediaType } = body
 
   if (!base64Image) {
     return NextResponse.json({ error: '이미지 데이터가 없습니다.' }, { status: 400 })
@@ -130,34 +130,48 @@ export async function POST(req: NextRequest) {
 
   try {
     // 1단계: Claude Vision OCR
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ocrContent: any[] = uploadMode === 'separate' ? [
+      { type: 'text', text: '아래 첫 번째 이미지는 수학 문제 원본이고, 두 번째 이미지는 학생의 손글씨 풀이입니다.' },
+      { type: 'image', source: { type: 'base64', media_type: problemMediaType, data: problemImage } },
+      { type: 'text', text: '[학생 풀이 이미지]\n' + PROMPT_OCR },
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ] : [
+      { type: 'text', text: PROMPT_OCR },
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ]
+
     const ocrRes = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: PROMPT_OCR },
-          { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
-        ]
-      }]
+      messages: [{ role: 'user', content: ocrContent }]
     })
     const ocrText = ocrRes.content[0].type === 'text' ? ocrRes.content[0].text : ''
 
-    const verifyRes = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1024,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: `아래 OCR 결과에서 지수(위첨자) 표기가 정확한지 원본 이미지와 대조하여 검증하라.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const verifyContent: any[] = uploadMode === 'separate' ? [
+      { type: 'text', text: `아래 첫 번째 이미지는 문제 원본, 두 번째 이미지는 학생 풀이입니다. OCR 결과에서 지수(위첨자) 표기가 정확한지 대조하여 검증하라.
+틀린 지수가 있다면 수정된 전체 OCR 텍스트를 출력하라.
+틀린 지수가 없다면 "VERIFIED"라고만 출력하라.
+
+[학생 풀이 OCR 결과]
+${ocrText}` },
+      { type: 'image', source: { type: 'base64', media_type: problemMediaType, data: problemImage } },
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ] : [
+      { type: 'text', text: `아래 OCR 결과에서 지수(위첨자) 표기가 정확한지 원본 이미지와 대조하여 검증하라.
 틀린 지수가 있다면 수정된 전체 OCR 텍스트를 출력하라.
 틀린 지수가 없다면 "VERIFIED"라고만 출력하라.
 
 [OCR 결과]
 ${ocrText}` },
-          { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
-        ]
-      }]
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ]
+
+    const verifyRes = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: verifyContent }]
     })
     const verifyText = verifyRes.content[0].type === 'text' ? verifyRes.content[0].text : ''
     const finalOcrText = verifyText.trim() === 'VERIFIED' ? ocrText : verifyText
@@ -177,17 +191,21 @@ ${finalOcrText}
 
 ${instruction}`
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const analysisContent: any[] = uploadMode === 'separate' ? [
+      { type: 'text', text: userMsg },
+      { type: 'image', source: { type: 'base64', media_type: problemMediaType, data: problemImage } },
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ] : [
+      { type: 'text', text: userMsg },
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
+    ]
+
     const analysisRes = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 8192,
       system: isSolve ? PROMPT_ANALYZE_SOLVE : PROMPT_ANALYZE_ERROR,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: userMsg },
-          { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg' | 'image/png', data: base64Image } }
-        ]
-      }]
+      messages: [{ role: 'user', content: analysisContent }]
     })
 
     const jsonText = analysisRes.content[0].type === 'text' ? analysisRes.content[0].text : ''

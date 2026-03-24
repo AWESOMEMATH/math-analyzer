@@ -205,6 +205,12 @@ export default function Home() {
   const [studentName, setStudentName] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // ── 문제/풀이 분리 모드 ──
+  const [uploadMode, setUploadMode] = useState<'single' | 'separate'>('single')
+  const [problemFile, setProblemFile] = useState<{ file: File; preview: string } | null>(null)
+  const [isProblemDragOver, setIsProblemDragOver] = useState(false)
+  const problemInputRef = useRef<HTMLInputElement>(null)
 
   // ── 분석 진행 ──
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -294,6 +300,18 @@ export default function Home() {
     })
   }, [uploadedFiles.length])
 
+  const addProblemFile = useCallback((files: FileList | File[]) => {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
+    if (arr.length > 0) {
+      const file = arr[0]
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setProblemFile({ file, preview: e.target?.result as string })
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [])
+
   // ── 파일 제거 ──
   const removeFile = (i: number) => {
     setUploadedFiles(prev => prev.filter((_, idx) => idx !== i))
@@ -308,12 +326,22 @@ export default function Home() {
   const handleAnalyze = async (isPremium: boolean = false) => {
     if (!studentName.trim()) { setError('학생 이름을 입력해주세요.'); return }
     if (uploadedFiles.length === 0) { setError('풀이 사진을 선택해주세요.'); return }
+    if (uploadMode === 'separate' && analysisMode !== 'solve' && !problemFile) { setError('문제 원본 사진을 선택해주세요.'); return }
+
     setIsAnalyzing(true)
     setResults([])
     setError('')
     setShowBulkExport(false)
     const total = uploadedFiles.length
     const newResults: AnalysisResult[] = []
+
+    let problemBase64 = ''
+    let problemMediaType = ''
+    if (uploadMode === 'separate' && analysisMode !== 'solve' && problemFile) {
+      const pRes = await resizeImage(problemFile.file)
+      problemBase64 = pRes.base64
+      problemMediaType = pRes.mediaType
+    }
 
     for (let i = 0; i < total; i++) {
       const item = uploadedFiles[i]
@@ -322,10 +350,19 @@ export default function Home() {
       try {
         const { base64, mediaType } = await resizeImage(item.file)
         setProgress({ current: i + 1, total, msg: `🔍 ${i + 1}/${total} 분석 중...` })
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payload: any = { base64Image: base64, mediaType, problemNum: probNum, analysisMode }
+        if (uploadMode === 'separate' && analysisMode !== 'solve' && problemBase64) {
+          payload.uploadMode = 'separate'
+          payload.problemImage = problemBase64
+          payload.problemMediaType = problemMediaType
+        }
+        
         const res = await fetch(isPremium ? '/api/analyze-premium' : '/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-invite-code': encodeURIComponent(inviteCode) },
-          body: JSON.stringify({ base64Image: base64, mediaType, problemNum: probNum, analysisMode })
+          body: JSON.stringify(payload)
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({}))
@@ -591,6 +628,23 @@ export default function Home() {
             </div>
           </div>
 
+          {/* 업로드 방식 */}
+          {analysisMode !== 'solve' && (
+            <div style={{ background: 'rgba(0,212,255,0.05)', padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(0,212,255,0.2)', marginBottom: 20 }}>
+              <label style={{ fontSize: 13, color: '#00d4ff', fontWeight: 600, display: 'block', marginBottom: 10 }}>📋 업로드 방식 선택</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#e0e1dd' }}>
+                  <input type="radio" name="uploadMode" checked={uploadMode === 'single'} onChange={() => setUploadMode('single')} style={{ accentColor: '#00d4ff' }} />
+                  ○ 한 장에 문제+풀이 포함 (기본)
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#e0e1dd' }}>
+                  <input type="radio" name="uploadMode" checked={uploadMode === 'separate'} onChange={() => setUploadMode('separate')} style={{ accentColor: '#00d4ff' }} />
+                  ○ 문제와 풀이 따로 올리기
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* 학생 이름 */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, color: '#778da9', marginBottom: 7 }}>학생 이름</label>
@@ -601,9 +655,39 @@ export default function Home() {
             />
           </div>
 
-          {/* 업로드 영역 */}
+          {/* 업로드 영역 (문제 사진 - 분리 모드일 때만 표시) */}
+          {uploadMode === 'separate' && analysisMode !== 'solve' && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, color: '#778da9', marginBottom: 7 }}>📄 문제 사진 (1장)</label>
+              {!problemFile ? (
+                <div
+                  style={{ border: `1.5px dashed ${isProblemDragOver ? '#00d4ff' : '#2d3f55'}`, borderRadius: 10, padding: 24, textAlign: 'center', cursor: 'pointer', position: 'relative', background: isProblemDragOver ? 'rgba(0,212,255,0.04)' : 'transparent', transition: 'all 0.2s' }}
+                  onDragOver={e => { e.preventDefault(); setIsProblemDragOver(true) }}
+                  onDragLeave={() => setIsProblemDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setIsProblemDragOver(false); if (e.dataTransfer.files) addProblemFile(e.dataTransfer.files) }}
+                  onClick={() => problemInputRef.current?.click()}
+                >
+                  <input ref={problemInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files) addProblemFile(e.target.files) }} />
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📄</div>
+                  <div style={{ fontSize: 14, color: '#778da9' }}>
+                    <strong style={{ color: '#00d4ff' }}>클릭하여 문제 원본 사진 선택</strong> 혹은 드래그 앤 드롭<br />(1장만 허용)
+                  </div>
+                </div>
+              ) : (
+                <div style={{ position: 'relative', background: '#0f1e2f', borderRadius: 8, border: '1px solid #2d3f55', padding: 8, display: 'inline-block' }}>
+                  <img src={problemFile.preview} alt="problem" style={{ display: 'block', maxHeight: 120, borderRadius: 6 }} />
+                  <button
+                    onClick={e => { e.stopPropagation(); setProblemFile(null) }}
+                    style={{ position: 'absolute', top: -5, right: -5, background: '#ff4444', border: 'none', borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }}
+                  >✕</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 업로드 영역 (풀이 사진) */}
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, color: '#778da9', marginBottom: 7 }}>수학 풀이 사진 (최대 5장)</label>
+            <label style={{ display: 'block', fontSize: 13, color: '#778da9', marginBottom: 7 }}>{uploadMode === 'separate' && analysisMode !== 'solve' ? '✏️ 학생 풀이 사진 (최대 5장)' : '수학 풀이 사진 (최대 5장)'}</label>
             <div
               style={{ border: `1.5px dashed ${isDragOver ? '#00d4ff' : '#2d3f55'}`, borderRadius: 10, padding: 24, textAlign: 'center', cursor: 'pointer', position: 'relative', background: isDragOver ? 'rgba(0,212,255,0.04)' : 'transparent', transition: 'all 0.2s' }}
               onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
