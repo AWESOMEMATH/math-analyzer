@@ -10,7 +10,7 @@ import { answerFromImage, ANSWER_MODEL, downloadImage } from '@/lib/kakao/answer
 import { MIN_QUESTIONS, MIN_TESTS, runDiagnosis } from '@/lib/kakao/diagnosis'
 import { findTopic } from '@/lib/kakao/curriculum'
 import {
-  completeQuestion, confirmLink, createPendingQuestion, failQuestion, findStudentByCode,
+  completeQuestion, confirmLink, countQuestionsToday, createPendingQuestion, failQuestion, findStudentByCode,
   getLink, getReport, getStudent, normalizeCode, setPendingLink, updateStudent,
 } from '@/lib/kakao/store'
 import { consentText } from '@/lib/kakao/consent'
@@ -140,6 +140,11 @@ async function handleDiagnosisRequest(studentId: string) {
 export async function POST(req: NextRequest) {
   // 오픈빌더 스킬 설정의 헤더 값으로 출처를 확인한다 (오픈빌더 요청에는 서명이 없다)
   const secret = process.env.KAKAO_SKILL_SECRET
+  // 운영에서는 비밀값이 없으면 아무나 요청을 보낼 수 있으므로 받지 않는다
+  if (!secret && process.env.NODE_ENV === 'production') {
+    console.error('KAKAO_SKILL_SECRET 미설정 — 요청 거부')
+    return NextResponse.json({ error: 'not configured' }, { status: 503 })
+  }
   if (secret && req.headers.get('x-skill-secret') !== secret) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
@@ -186,6 +191,13 @@ export async function POST(req: NextRequest) {
       // 콜백이 꺼져 있으면 5초 안에 답할 수 없다 — 설정 문제를 바로 알린다
       return NextResponse.json(template([
         simpleText('지금은 사진 풀이를 받을 수 없어요. (관리자: 오픈빌더 블록의 "콜백 사용"을 켜 주세요)'),
+      ]))
+    }
+    // 학생 한 명이 하루에 보낼 수 있는 사진 수 — 비용 상한
+    const limit = Number(process.env.KAKAO_DAILY_LIMIT || 20)
+    if ((await countQuestionsToday(student.id)) >= limit) {
+      return NextResponse.json(template([
+        simpleText(`오늘은 질문을 ${limit}개까지 받을 수 있어요. 내일 다시 보내 주세요. 급한 질문은 선생님께 직접 물어봐 주세요.`),
       ]))
     }
     after(() => handleImage(body, imageUrl, student))

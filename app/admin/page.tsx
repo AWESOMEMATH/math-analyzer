@@ -8,6 +8,7 @@ import {
 } from './actions'
 import PassdreamImport from './PassdreamImport'
 import { portalToken } from '@/lib/portal'
+import { missingRequired } from '@/lib/config'
 import './admin.css'
 
 export const dynamic = 'force-dynamic'
@@ -39,13 +40,15 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
   const schools = [...new Set(students.map(s => s.school).filter(Boolean))].sort()
   const channel = process.env.KAKAO_CHANNEL_URL || '(카카오톡 채널 링크)'
   const academyName = (id: string) => academies.find(a => a.id === id)?.name ?? '-'
+  const missing = missingRequired()
 
   return (
     <main className="adm">
       <header className="top">
         <h1>AWESOME 학생 관리</h1>
-        <div className="row"><Link href="/admin/exams" className="ghostlink">시험지 문항 연결</Link><form action={logoutAction}><button className="ghost">로그아웃</button></form></div>
+        <div className="row"><Link href="/admin/exams" className="ghostlink">시험지 문항 연결</Link><Link href="/admin/test" className="ghostlink">배포 점검</Link><form action={logoutAction}><button className="ghost">로그아웃</button></form></div>
       </header>
+      {missing.length > 0 && <p className="err">필수 설정이 빠졌습니다: {missing.join(', ')} — 「배포 점검」에서 확인하세요.</p>}
       {sp.error && sp.error !== 'login' && <p className="err">{sp.error}</p>}
       {sp.added && <p className="ok">{sp.added}명을 등록했습니다.</p>}
 

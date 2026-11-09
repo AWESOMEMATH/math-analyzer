@@ -8,6 +8,8 @@ import type { StudentStatus } from '@/lib/kakao/types'
 
 export async function loginAction(fd: FormData) {
   const ok = await login(String(fd.get('password') || ''))
+  // 비밀번호 대입 공격을 느리게 만든다
+  if (!ok) await new Promise(r => setTimeout(r, 1500))
   redirect(ok ? '/admin' : '/admin?error=login')
 }
 
@@ -222,4 +224,48 @@ export async function saveExamMapAction(fd: FormData) {
   await saveExamMap({ ...m, items, status: confirm ? 'confirmed' : 'draft', confirmedAt: confirm ? Date.now() : m.confirmedAt })
   revalidatePath('/admin/exams')
   redirect(`/admin/exams/${encodeURIComponent(id)}?saved=${confirm ? 'confirmed' : 'draft'}`)
+}
+
+// ── 배포 후 점검: 사진 한 장으로 실제 풀이 시험 ─────────
+export interface TestAnswerResult {
+  error?: string
+  ms?: number
+  model?: string
+  tokens?: { input: number; output: number; cacheRead: number; cacheWrite: number }
+  costUsd?: number | null
+  note?: import('@/lib/kakao/types').NoteData
+  topicLabel?: string
+}
+
+// 100만 토큰당 달러 (입력, 출력, 캐시 읽기). 캐시 쓰기는 입력의 1.25배
+const PRICE: Record<string, [number, number, number]> = {
+  'claude-opus-5-5': [4, 20, 0.2],
+  'claude-sonnet-5-5': [2, 10, 0.2],
+}
+
+export async function testAnswerAction(fd: FormData): Promise<TestAnswerResult> {
+  await requireAdmin()
+  const file = fd.get('image')
+  if (!(file instanceof File) || !file.size) return { error: '사진을 고르세요' }
+  if (file.size > 4 * 1024 * 1024) return { error: '4MB 이하 사진으로 시험해 주세요' }
+  const { answerFromImage, ANSWER_MODEL } = await import('@/lib/kakao/answer')
+  const { findTopic } = await import('@/lib/kakao/curriculum')
+  const type = (['image/png', 'image/webp', 'image/gif'].includes(file.type) ? file.type : 'image/jpeg') as 'image/jpeg'
+  try {
+    const r = await answerFromImage({ data: Buffer.from(await file.arrayBuffer()).toString('base64'), mediaType: type })
+    const u = r.usage
+    const tokens = {
+      input: u.input_tokens, output: u.output_tokens,
+      cacheRead: u.cache_read_input_tokens ?? 0, cacheWrite: u.cache_creation_input_tokens ?? 0,
+    }
+    const p = PRICE[ANSWER_MODEL]
+    const costUsd = p
+      ? (tokens.input * p[0] + tokens.cacheWrite * p[0] * 1.25 + tokens.cacheRead * p[2] + tokens.output * p[1]) / 1e6
+      : null
+    const t = findTopic(r.note.topic_code)
+    return { ms: r.ms, model: ANSWER_MODEL, tokens, costUsd, note: r.note, topicLabel: t ? `${t.course} > ${t.chapter} > ${t.topic}` : '미분류' }
+  } catch (e) {
+    const status = (e as { status?: number }).status
+    return { error: status === 401 ? 'ANTHROPIC_API_KEY가 올바르지 않습니다' : e instanceof Error ? e.message : '실패' }
+  }
 }

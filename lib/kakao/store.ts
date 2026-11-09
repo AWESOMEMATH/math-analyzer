@@ -292,3 +292,11 @@ export async function listTestTitles(): Promise<{ title: string; key: string; un
   }
   return [...map.values()].sort((a, b) => a.title.localeCompare(b.title, 'ko'))
 }
+
+/** 오늘(한국 시간) 이 학생이 보낸 질문 수 — 실패한 시도도 비용이 들었으므로 센다 */
+export async function countQuestionsToday(studentId: string, now = Date.now()): Promise<number> {
+  const KST = 9 * 3600000
+  const start = Math.floor((now + KST) / 86400000) * 86400000 - KST
+  const snap = await db().collection(Q).where('studentId', '==', studentId).where('createdAt', '>=', start).count().get()
+  return snap.data().count
+}

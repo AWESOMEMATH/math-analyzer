@@ -124,7 +124,8 @@ function normalize(j: Record<string, unknown>): NoteData {
 export async function answerFromImage(
   image: { data: string; mediaType: ImageMedia },
   studentText?: string,
-): Promise<{ note: NoteData; brainUsed: boolean }> {
+): Promise<{ note: NoteData; brainUsed: boolean; usage: Anthropic.Usage; ms: number }> {
+  const t0 = Date.now()
   const brain = await fetchBrainContext(studentText || '수학 문제')
   const res = await anthropic.messages.create({
     model: ANSWER_MODEL,
@@ -150,5 +151,5 @@ export async function answerFromImage(
   const text = textOf(res)
   const j = extractJSON(text)
   if (!j) throw new Error('AI 응답 파싱 실패')
-  return { note: normalize(j), brainUsed: !!brain }
+  return { note: normalize(j), brainUsed: !!brain, usage: res.usage, ms: Date.now() - t0 }
 }

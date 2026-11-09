@@ -1,0 +1,17 @@
+{
+  "indexes": [
+    { "collectionGroup": "kakao_questions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "kakao_questions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "kakao_questions", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" } ] },
+    { "collectionGroup": "test_results", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "importedAt", "order": "ASCENDING" } ] },
+    { "collectionGroup": "test_results", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "importedAt", "order": "DESCENDING" } ] },
+    { "collectionGroup": "kakao_reports", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "studentId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" } ] }
+  ],
+  "fieldOverrides": []
+}

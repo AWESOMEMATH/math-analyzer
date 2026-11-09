@@ -56,4 +56,4 @@ firestore.rules             ← Firestore 보안 규칙
 ## 💬 카카오톡 자동 답변 · 4주 진단
 
 카카오톡 채널 챗봇(오픈빌더 스킬)으로 사진 질문 → 손글씨 노트 답변 → 4주 누적 진단표.
-설정과 한계는 [docs/KAKAO_SETUP.md](docs/KAKAO_SETUP.md) 참고.
+설정과 한계는 [docs/KAKAO_SETUP.md](docs/KAKAO_SETUP.md), 배포 순서는 [docs/DEPLOY.md](docs/DEPLOY.md), 환경변수는 [.env.example](.env.example) 참고.

@@ -72,6 +72,7 @@ FIREBASE_SERVICE_ACCOUNT=<서비스 계정 JSON 한 줄>
 CRON_SECRET=<임의 문자열>               # Vercel Cron이 Authorization: Bearer 로 보냄
 DIAG_MIN_QUESTIONS=8
 DIAG_MIN_TESTS=2
+KAKAO_DAILY_LIMIT=20                    # 학생 1명당 하루 사진 수 (비용 상한)
 ADMIN_PASSWORD=<관리자 비밀번호>
 PORTAL_SECRET=<임의의 긴 문자열>
 PORTAL_LINK_DAYS=7
