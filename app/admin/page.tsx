@@ -6,6 +6,7 @@ import {
   addAcademyAction, addStudentAction, bulkAddAction, loginAction, logoutAction, reissueCodeAction, toggleActiveAction,
 } from './actions'
 import PassdreamImport from './PassdreamImport'
+import { portalToken } from '@/lib/portal'
 import './admin.css'
 
 export const dynamic = 'force-dynamic'
@@ -122,6 +123,7 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
                       <td className="num">{counts[i]}</td>
                       <td className="num">{tests[i]}</td>
                       <td className="acts">
+                        {process.env.PORTAL_SECRET && <a className="ghostlink" href={`/me/${portalToken(s.id, s.portalVersion ?? 0)}`} target="_blank" rel="noreferrer">기록</a>}
                         <form action={reissueCodeAction}><input type="hidden" name="id" value={s.id} /><button className="ghost">코드 재발급</button></form>
                         <form action={toggleActiveAction}><input type="hidden" name="id" value={s.id} /><button className="ghost">{s.active ? '중지' : '재개'}</button></form>
                       </td>

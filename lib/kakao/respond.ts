@@ -3,6 +3,7 @@
 type Output = Record<string, unknown>
 
 const QUICK = [
+  { label: '내 기록', action: 'message', messageText: '내 기록' },
   { label: '진단표', action: 'message', messageText: '진단표' },
   { label: '사용법', action: 'message', messageText: '사용법' },
 ]

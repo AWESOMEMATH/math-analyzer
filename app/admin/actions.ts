@@ -149,6 +149,6 @@ export async function importPassdreamAction(academyId: string, lines: string[]):
     if (!st.cycleStart) await updateStudent(st.id, { cycleStart: now })
     out.saved.push({ name: r.studentName, title: r.title, score: `${r.correct}/${r.totalItems}` })
   }
-  revalidatePath('/admin')
+  // revalidatePath를 쓰면 화면이 다시 그려지며 업로드 결과 표시가 사라진다 — 새로고침은 화면 쪽에서 한다
   return out
 }

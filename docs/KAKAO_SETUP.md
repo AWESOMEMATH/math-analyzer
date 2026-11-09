@@ -16,6 +16,12 @@
 - 목표 수능 학년도가 2028 이상이면 2022 개정, 그 전이면 2015 개정으로 표시·처방
 - 동의 문구(`lib/kakao/consent.ts`)는 초안 — 법률 검토 후 `CONSENT_OPERATOR`, `CONSENT_RETENTION`, `CONSENT_CONTACT` 설정
 
+## 학생 개인 페이지
+- 학생이 카톡 채널에 「내 기록」 → 7일짜리 링크 (`/me/...`): 질문 노트, 학원 테스트, 진단표 목록
+- 링크는 서명돼 있어 주소를 바꾸면 열리지 않음. 「코드 재발급」 시 이전 링크 모두 무효
+- 관리자 화면 학생 행의 「기록」 버튼으로 같은 페이지 확인
+- `PORTAL_SECRET`(임의의 긴 문자열) 필수, `PORTAL_LINK_DAYS`(기본 7)
+
 ## 패스드림 테스트 결과 가져오기
 1. 패스드림에서 「과제 성적분석 리포트」를 PDF로 저장 (여러 학생이 한 파일에 있어도 됨)
 2. `/admin` → 해당 학원 → 「패스드림 테스트 결과 가져오기」에 PDF 올리기 (여러 개 동시 가능)
@@ -25,7 +31,7 @@
 - 저장 내용: 시험명, 제출일, 총점, 석차, 단원별 정답(반 평균 포함), 틀린 문항 번호
 - 패스드림 단원명(2015 개정 수학Ⅰ·Ⅱ 등)은 2022 개정 대단원으로 바꿔 저장 (`lib/passdream/units.ts`)
 - 진단표: 질문 기록과 테스트 결과를 함께 반영. 질문이 적어도 테스트가 `DIAG_MIN_TESTS`(기본 2)회 이상이면 생성
-- 패스드림 화면 구성이 바뀌면 읽기가 깨질 수 있음 — 가져오기 결과의 경고 문구를 확인
+- 패스드림은 API를 제공하지 않으므로 PDF 업로드가 유일한 연동 경로. 리포트 형식이 바뀌면 읽기가 깨질 수 있음 — 가져오기 결과의 경고 문구(단원 합계 불일치 등)를 확인
 
 ## 흐름
 1. 학생이 채널 채팅방에 문제 사진(가능하면 자기 풀이 포함)을 보냄
@@ -59,6 +65,8 @@ CRON_SECRET=<임의 문자열>               # Vercel Cron이 Authorization: Bea
 DIAG_MIN_QUESTIONS=8
 DIAG_MIN_TESTS=2
 ADMIN_PASSWORD=<관리자 비밀번호>
+PORTAL_SECRET=<임의의 긴 문자열>
+PORTAL_LINK_DAYS=7
 KAKAO_CHANNEL_URL=<카카오톡 채널 링크>
 CONSENT_OPERATOR=
 CONSENT_RETENTION=
@@ -69,7 +77,8 @@ BRAIN_API_TOKEN=
 
 ### Firestore
 - `firestore.rules` 배포 (kakao_* 컬렉션은 클라이언트 접근 차단)
-- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status` / `test_results` — `studentId` + `importedAt`
+- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status` / `test_results` — `studentId` + `importedAt` (오름차순·내림차순 각각) / `kakao_questions` — `studentId` + `createdAt` 내림차순 / `kakao_reports` — `studentId` + `createdAt` 내림차순
+- 색인이 없으면 첫 조회 때 오류 메시지에 색인 생성 링크가 나옴 — 눌러서 만들면 됨
 
 ### 응답 시간
 Opus 5.5는 1분 콜백 제한을 넘길 수 있습니다. 45초 안에 답이 끝나지 않으면 「작성 중」 노트 링크를 먼저 보내고,

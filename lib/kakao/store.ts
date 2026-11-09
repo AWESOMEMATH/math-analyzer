@@ -91,7 +91,8 @@ export async function reissueCode(id: string): Promise<string> {
   if (!st) throw new Error('학생 없음')
   if (st.kakaoUserKey) await db().collection(U).doc(st.kakaoUserKey).set({ studentId: null }, { merge: true })
   const code = await uniqueCode()
-  await updateStudent(id, { linkCode: code, kakaoUserKey: null })
+  // 다른 사람이 쓰던 계정일 수 있으므로 이전에 나간 개인 페이지 링크도 무효로 만든다
+  await updateStudent(id, { linkCode: code, kakaoUserKey: null, portalVersion: (st.portalVersion ?? 0) + 1 })
   return code
 }
 
@@ -235,4 +236,26 @@ export async function listTestResults(studentId: string, from: number, to: numbe
 export async function countTestResults(studentId: string): Promise<number> {
   const snap = await db().collection(T).where('studentId', '==', studentId).count().get()
   return snap.data().count
+}
+
+// ── 개인 페이지용 조회 ─────────────────────────
+export async function recentQuestions(studentId: string, limit = 40): Promise<QuestionRecord[]> {
+  const snap = await db().collection(Q).where('studentId', '==', studentId).orderBy('createdAt', 'desc').limit(limit).get()
+  return snap.docs.map(d => d.data() as QuestionRecord).filter(q => !!q.note)
+}
+
+export async function recentTestResults(studentId: string, limit = 30): Promise<TestResult[]> {
+  const snap = await db().collection(T).where('studentId', '==', studentId).orderBy('importedAt', 'desc').limit(limit).get()
+  return snap.docs.map(d => d.data() as TestResult).sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+}
+
+export async function listReports(studentId: string, limit = 12): Promise<DiagnosisReport[]> {
+  // (studentId, createdAt) 복합 색인 필요
+  const snap = await db().collection(R).where('studentId', '==', studentId).orderBy('createdAt', 'desc').limit(limit).get()
+  return snap.docs.map(d => d.data() as DiagnosisReport)
+}
+
+export async function getAcademy(id: string): Promise<Academy | null> {
+  const snap = await db().collection(A).doc(id).get()
+  return snap.exists ? (snap.data() as Academy) : null
 }

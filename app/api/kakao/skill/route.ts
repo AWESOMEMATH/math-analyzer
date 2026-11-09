@@ -14,6 +14,7 @@ import {
   getLink, getReport, getStudent, normalizeCode, setPendingLink, updateStudent,
 } from '@/lib/kakao/store'
 import { consentText } from '@/lib/kakao/consent'
+import { portalToken } from '@/lib/portal'
 import { baseUrl, callbackAck, linkCard, postCallback, quick, simpleText, template } from '@/lib/kakao/respond'
 import type { DiagnosisReport, KakaoSkillRequest, Student } from '@/lib/kakao/types'
 
@@ -24,7 +25,8 @@ export const maxDuration = 300
 const HELP = `📸 문제 사진을 한 장씩 보내 주세요.
 ✍️ 내 풀이까지 같이 찍어 보내면 어디서 틀렸는지 짚어 드려요.
 📊 4주 동안 질문이 쌓이면 교육과정 단원별 진단표와 처방이 자동으로 만들어져요.
-「진단표」라고 보내면 지금까지의 진행 상황을 볼 수 있어요.`
+「진단표」라고 보내면 지금까지의 진행 상황을 볼 수 있어요.
+📒 「내 기록」을 보내면 내 질문 노트·테스트·진단표를 모아 볼 수 있어요.`
 
 /** 사진 URL 추출 — 일반 이미지 전송, media 파라미터, 보안 이미지 플러그인 모두 대응 */
 function extractImageUrl(body: KakaoSkillRequest): string | null {
@@ -188,6 +190,13 @@ export async function POST(req: NextRequest) {
     }
     after(() => handleImage(body, imageUrl, student))
     return NextResponse.json(callbackAck('사진 받았어요! 손글씨 노트로 풀이를 정리하고 있어요. 1분 정도 걸려요 ✏️'))
+  }
+
+  if (/^내\s*(기록|페이지)/.test(utter)) {
+    const url = `${baseUrl()}/me/${portalToken(student.id, student.portalVersion ?? 0)}`
+    return NextResponse.json(template([
+      linkCard('📒 내 학습 기록', '질문 노트·학원 테스트·진단표를 한곳에서 볼 수 있어요. 링크는 7일 동안 열려요. 다른 사람에게 보내지 마세요.', '내 기록 보기', url),
+    ]))
   }
 
   if (/진단/.test(utter)) {

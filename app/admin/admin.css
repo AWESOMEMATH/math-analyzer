@@ -28,3 +28,4 @@
 .adm .ok { color: var(--acc); }
 .adm details { margin-top: 12px; }
 .adm summary { cursor: pointer; color: var(--sub); }
+.adm a.ghostlink { border: 1px solid #d1d5db; border-radius: 6px; padding: 4px 8px; font-size: 12px; color: var(--ink); text-decoration: none; background: #fff; }

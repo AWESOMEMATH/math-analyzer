@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { extractLines } from '@/lib/passdream/extract'
 import { importPassdreamAction, type ImportSummary } from './actions'
 
 export default function PassdreamImport({ academyId }: { academyId: string }) {
+  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<ImportSummary | null>(null)
 
@@ -20,6 +22,7 @@ export default function PassdreamImport({ academyId }: { academyId: string }) {
         total.unmatched.push(...r.unmatched); total.ambiguous.push(...r.ambiguous); total.warnings.push(...r.warnings)
       }
       setRes(total)
+      if (total.saved.length) router.refresh() // 학생 표의 테스트 수 갱신 (결과 표시는 유지)
     } catch (err) {
       setRes({ ...total, error: err instanceof Error ? err.message : '가져오기 실패' })
     } finally {

@@ -70,6 +70,8 @@ export interface Student {
   cycleStart: number | null
   pendingReportId: string | null
   lastReportId: string | null
+  // 개인 페이지 링크 버전 — 올리면 이전 링크가 모두 무효
+  portalVersion?: number
 }
 
 export interface QuestionRecord {
