@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomInt } from 'crypto'
 import { getAdminDb } from '@/lib/firebaseAdmin'
-import type { Academy, DiagnosisReport, NoteData, PendingQuestion, QuestionRecord, Student, TestResult } from './types'
+import type { Academy, DiagnosisReport, ExamMap, NoteData, PendingQuestion, QuestionRecord, Student, TestResult } from './types'
 
 const Q = 'kakao_questions'
 const U = 'kakao_users'      // 카카오 계정 → 학생 연결표
@@ -8,6 +8,7 @@ const R = 'kakao_reports'
 const S = 'students'
 const A = 'academies'
 const T = 'test_results'
+const E = 'exam_maps'
 
 export const CYCLE_MS = 28 * 24 * 60 * 60 * 1000
 
@@ -258,4 +259,36 @@ export async function listReports(studentId: string, limit = 12): Promise<Diagno
 export async function getAcademy(id: string): Promise<Academy | null> {
   const snap = await db().collection(A).doc(id).get()
   return snap.exists ? (snap.data() as Academy) : null
+}
+
+// ── 시험지 문항 연결 ──────────────────────────
+/** 시험명을 비교용으로 정규화 (공백·괄호 제거) */
+export function examKey(title: string): string {
+  return title.replace(/[\s\[\]()]/g, '').toLowerCase()
+}
+
+export async function saveExamMap(m: ExamMap) {
+  await db().collection(E).doc(m.id).set(m)
+}
+
+export async function getExamMap(id: string): Promise<ExamMap | null> {
+  const snap = await db().collection(E).doc(id).get()
+  return snap.exists ? (snap.data() as ExamMap) : null
+}
+
+export async function listExamMaps(): Promise<ExamMap[]> {
+  const snap = await db().collection(E).get()
+  return snap.docs.map(d => d.data() as ExamMap).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** 가져온 패스드림 시험 이름 목록 (시험지 연결 대상) + 해당 시험의 단원별 문항 수 */
+export async function listTestTitles(): Promise<{ title: string; key: string; units: { label: string; codes: string[]; items: number }[] }[]> {
+  const snap = await db().collection(T).select('title', 'units').get()
+  const map = new Map<string, { title: string; key: string; units: { label: string; codes: string[]; items: number }[] }>()
+  for (const d of snap.docs) {
+    const r = d.data() as Pick<TestResult, 'title' | 'units'>
+    const key = examKey(r.title)
+    if (!map.has(key)) map.set(key, { title: r.title, key, units: r.units.map(u => ({ label: u.label, codes: u.codes, items: u.items })) })
+  }
+  return [...map.values()].sort((a, b) => a.title.localeCompare(b.title, 'ko'))
 }

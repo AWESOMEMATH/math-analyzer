@@ -2,8 +2,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import { chapterLabel, findTopic, loadTopics } from './curriculum'
 import { ANSWER_MODEL } from './answer'
 import { MAX_TOKENS, textOf } from '@/lib/claude'
-import { CYCLE_MS, getStudent, listQuestions, listTestResults, newId, saveReport, updateStudent } from './store'
-import { ERROR_TYPE_LABEL, type DiagnosisReport, type ErrorType, type QuestionRecord, type Student, type TestResult, type TestStat, type TopicStat } from './types'
+import { CYCLE_MS, examKey, getExamMap, getStudent, listQuestions, listTestResults, newId, saveReport, updateStudent } from './store'
+import { ERROR_TYPE_LABEL, type DiagnosisReport, type ErrorType, type QuestionRecord, type Student, type ExamMap, type TestResult, type TestStat, type TestTopicStat, type TopicStat } from './types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -11,6 +11,36 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 export const MIN_QUESTIONS = Number(process.env.DIAG_MIN_QUESTIONS || 8)
 /** 질문이 적어도 테스트가 이만큼 있으면 진단표를 만든다 */
 export const MIN_TESTS = Number(process.env.DIAG_MIN_TESTS || 2)
+
+/** 확정된 시험지 연결이 있는 시험만 — 세부 단원별 출제·오답 */
+export function aggregateTestTopics(tests: TestResult[], maps: Map<string, ExamMap>): TestTopicStat[] {
+  const out = new Map<string, TestTopicStat>()
+  for (const t of tests) {
+    const m = maps.get(examKey(t.title))
+    // 틀린 문항 번호가 다 확인되지 않은 시험은 「맞음」으로 잘못 셀 수 있어 뺀다
+    if (!m || m.status !== 'confirmed' || !t.wrongComplete) continue
+    const wrong = new Set(t.wrongItems)
+    for (const it of m.items) {
+      if (!it.topic_code) continue
+      const tp = findTopic(it.topic_code)
+      const st = out.get(it.topic_code) ?? {
+        code: it.topic_code, label: tp ? `${tp.course} > ${tp.chapter} > ${tp.topic}` : it.topic_code,
+        items: 0, wrong: 0, wrongNos: [],
+      }
+      st.items++
+      if (wrong.has(it.no)) { st.wrong++; st.wrongNos.push(`${t.title} ${it.no}번`) }
+      out.set(it.topic_code, st)
+    }
+  }
+  const order = new Map(loadTopics().map(x => [x.code, x.order]))
+  return [...out.values()].sort((a, b) => (order.get(a.code) ?? 1e9) - (order.get(b.code) ?? 1e9))
+}
+
+export async function loadExamMaps(tests: TestResult[]): Promise<Map<string, ExamMap>> {
+  const keys = [...new Set(tests.map(t => examKey(t.title)))]
+  const maps = await Promise.all(keys.map(k => getExamMap(k)))
+  return new Map(maps.filter((m): m is ExamMap => !!m).map(m => [m.id, m]))
+}
 
 /** 테스트 단원별 합계 — 같은 대단원끼리 여러 시험을 더한다 */
 export function aggregateTests(tests: TestResult[]): TestStat[] {
@@ -88,7 +118,8 @@ function buildCaveats(qs: QuestionRecord[], stats: TopicStat[], st: Student, tes
 const SOLUTION_SYSTEM = `너는 27년 경력 수학 교사 어썸 정현경이다. 학생 한 명이 4주 동안 카카오톡으로 보낸 질문 집계를 보고 2022 개정 교육과정 기준 처방을 쓴다.
 규칙
 - 근거는 두 가지다. question_topics는 학생이 스스로 질문한 문제(어려워한 단원), test_units는 학원 테스트 결과(실제 정답률)다. 질문하지 않았는데 테스트에서 틀리는 단원을 특히 짚는다.
-- priorities의 code는 question_topics의 code 또는 test_units의 code만 쓴다.
+- test_topics가 있으면 test_units보다 세밀한 근거다. 세부 단원 처방에 우선 쓴다.
+- priorities의 code는 question_topics, test_units, test_topics에 나온 code만 쓴다.
 - 학생 구분과 목표 수능 범위(student.exam)를 기준으로 우선순위를 정한다. 수능 범위 밖 단원은 선수 개념으로만 다룬다.
 - 집계에 근거가 있는 말만 한다. 질문 수가 적은 단원을 단정하지 않는다.
 - priorities는 최대 3개. code는 집계에 나온 토픽 코드만 쓴다.
@@ -98,7 +129,7 @@ const SOLUTION_SYSTEM = `너는 27년 경력 수학 교사 어썸 정현경이�
 다른 말 없이 JSON 하나만 출력한다.
 {"headline":"한 문장 총평","priorities":[{"code":"","label":"","reason":"","action":""}],"prerequisites":[""],"weekly_plan":[{"week":1,"focus":"","tasks":[""]}],"habit":"풀이 습관 한 가지"}`
 
-async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<ErrorType, number>>, qs: QuestionRecord[], st: Student, testStats: TestStat[]) {
+async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<ErrorType, number>>, qs: QuestionRecord[], st: Student, testStats: TestStat[], testTopics: TestTopicStat[]) {
   const topicInfo = stats
     .filter(s => s.code !== 'unmapped')
     .map(s => {
@@ -135,6 +166,8 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
           code: t.key, label: t.label, tests: t.tests, correct: t.correct, items: t.items,
           class_rate: t.classTotal ? Math.round((t.classCorrect / t.classTotal) * 100) : null,
         })),
+        // 시험지 문항 연결이 확정된 시험의 세부 단원별 오답 — code는 토픽 코드
+        test_topics: testTopics.map(t => ({ code: t.code, label: t.label, items: t.items, wrong: t.wrong })),
       }),
     }],
   })
@@ -142,7 +175,7 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
   const m = text.match(/\{[\s\S]*\}/)
   if (!m) throw new Error('진단 처방 파싱 실패')
   const j = JSON.parse(m[0]) as DiagnosisReport['solution']
-  const valid = new Set([...stats.map(s => s.code), ...testStats.map(t => t.key)])
+  const valid = new Set([...stats.map(s => s.code), ...testStats.map(t => t.key), ...testTopics.map(t => t.code)])
   return {
     headline: j.headline ?? '',
     priorities: (j.priorities ?? []).filter(p => valid.has(p.code)).slice(0, 3),
@@ -179,7 +212,8 @@ export async function runDiagnosis(studentId: string, force = false, now = Date.
 
   const { stats, errorTotals } = aggregate(qs)
   const testStats = aggregateTests(tests)
-  const solution = await generateSolution(stats, errorTotals, qs, st, testStats)
+  const testTopicStats = aggregateTestTopics(tests, await loadExamMaps(tests))
+  const solution = await generateSolution(stats, errorTotals, qs, st, testStats, testTopicStats)
   const report: DiagnosisReport = {
     id: newId(),
     studentId,
@@ -192,6 +226,7 @@ export async function runDiagnosis(studentId: string, force = false, now = Date.
     solution,
     caveats: buildCaveats(qs, stats, st, tests),
     testStats,
+    testTopicStats,
     tests: tests.map(t => ({
       title: t.title, submittedAt: t.submittedAt, score: `${t.correct}/${t.totalItems}`,
       rank: t.rank && t.classSize ? `${t.rank}/${t.classSize}` : '-',

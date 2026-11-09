@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { Metadata } from 'next'
 import { isAdmin } from '@/lib/admin'
 import { countQuestions, countTestResults, listAcademies, listStudents } from '@/lib/kakao/store'
@@ -43,7 +44,7 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
     <main className="adm">
       <header className="top">
         <h1>AWESOME 학생 관리</h1>
-        <form action={logoutAction}><button className="ghost">로그아웃</button></form>
+        <div className="row"><Link href="/admin/exams" className="ghostlink">시험지 문항 연결</Link><form action={logoutAction}><button className="ghost">로그아웃</button></form></div>
       </header>
       {sp.error && sp.error !== 'login' && <p className="err">{sp.error}</p>}
       {sp.added && <p className="ok">{sp.added}명을 등록했습니다.</p>}

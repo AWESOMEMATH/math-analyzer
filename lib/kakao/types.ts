@@ -122,6 +122,7 @@ export interface DiagnosisReport {
   caveats: string[]
   /** 패스드림 테스트 단원별 합계 (이번 주기에 가져온 시험) */
   testStats?: TestStat[]
+  testTopicStats?: TestTopicStat[]
   tests?: { title: string; submittedAt: string; score: string; rank: string }[]
 }
 
@@ -163,4 +164,32 @@ export interface TestResult {
   wrongItems: number[]
   wrongComplete: boolean
   importedAt: number
+}
+
+// ── 시험지 문항 → 세부 단원 연결 ───────────────
+export interface ExamItem {
+  no: number
+  topic_code: string   // 2022 개정 토픽 코드, 모르면 ''
+  summary: string      // 문항 한 줄 요약
+  points: number | null
+}
+
+export interface ExamMap {
+  id: string           // 패스드림 시험명 정규화 값 (examKey)
+  title: string        // 패스드림 시험명
+  items: ExamItem[]
+  status: 'draft' | 'confirmed'
+  source: string       // 올린 시험지 파일 이름
+  model: string        // 초안을 만든 모델, 직접 입력이면 'manual'
+  createdAt: number
+  confirmedAt: number | null
+}
+
+/** 진단표: 확정된 시험지 연결로 본 세부 단원별 오답 */
+export interface TestTopicStat {
+  code: string
+  label: string
+  items: number
+  wrong: number
+  wrongNos: string[]   // "제7회 14번" 형식
 }

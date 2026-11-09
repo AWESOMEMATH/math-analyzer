@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { verifyPortalToken } from '@/lib/portal'
 import { CYCLE_MS, getAcademy, getStudent, listReports, recentQuestions, recentTestResults } from '@/lib/kakao/store'
 import { findTopic } from '@/lib/kakao/curriculum'
+import { loadExamMaps } from '@/lib/kakao/diagnosis'
+import { examKey } from '@/lib/kakao/store'
 import { curriculumOf } from '@/lib/kakao/exam'
 import { ERROR_TYPE_LABEL } from '@/lib/kakao/types'
 import Mascot from '../../note/Mascot'
@@ -52,6 +54,13 @@ export default async function MyPage({ params }: { params: Promise<{ token: stri
   const [academy, questions, tests, reports] = await Promise.all([
     getAcademy(st.academyId), recentQuestions(st.id), recentTestResults(st.id), listReports(st.id),
   ])
+  const maps = await loadExamMaps(tests)
+  const wrongLabel = (title: string, no: number) => {
+    const m = maps.get(examKey(title))
+    const it = m?.status === 'confirmed' ? m.items.find(x => x.no === no) : undefined
+    const tp = it ? findTopic(it.topic_code) : undefined
+    return tp ? `${no}번 ${tp.topic}` : `${no}번`
+  }
   const daysLeft = daysUntilDiagnosis(st.cycleStart)
   const inCycleQ = st.cycleStart ? questions.filter(q => q.createdAt >= st.cycleStart!).length : 0
   const inCycleT = st.cycleStart ? tests.filter(t => t.importedAt >= st.cycleStart!).length : 0
@@ -102,7 +111,7 @@ export default async function MyPage({ params }: { params: Promise<{ token: stri
                       <div className="caveat">{t.submittedAt} · {t.units.map(u => `${u.label} ${u.correct}/${u.items}`).join(', ')}</div>
                     </td>
                     <td className="num">{t.correct}/{t.totalItems}</td>
-                    <td>{t.wrongItems.length ? t.wrongItems.join(', ') + (t.wrongComplete ? '' : ' 외') : '-'}</td>
+                    <td>{t.wrongItems.length ? t.wrongItems.map(n => wrongLabel(t.title, n)).join(', ') + (t.wrongComplete ? '' : ' 외') : '-'}</td>
                   </tr>
                 ))}
               </tbody>

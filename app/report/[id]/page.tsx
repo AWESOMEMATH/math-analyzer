@@ -89,6 +89,26 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
+      {r.testTopicStats && r.testTopicStats.some(t => t.wrong > 0) && (
+        <div className="box">
+          <div className="boxlab">학원 테스트에서 틀린 세부 단원</div>
+          <div className="tablewrap">
+            <table className="compact">
+              <thead><tr><th>세부 단원</th><th>오답</th><th>틀린 문항</th></tr></thead>
+              <tbody>
+                {r.testTopicStats.filter(t => t.wrong > 0).sort((a, b) => b.wrong - a.wrong).map(t => (
+                  <tr key={t.code}>
+                    <td>{t.label}</td>
+                    <td className="num">{t.wrong}/{t.items}</td>
+                    <td className="caveat">{t.wrongNos.join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="row">
         <Mascot mood="pout" arm="right" size={64} />
         <div className="box trap">

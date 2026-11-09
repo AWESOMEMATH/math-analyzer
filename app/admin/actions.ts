@@ -152,3 +152,74 @@ export async function importPassdreamAction(academyId: string, lines: string[]):
   // revalidatePath를 쓰면 화면이 다시 그려지며 업로드 결과 표시가 사라진다 — 새로고침은 화면 쪽에서 한다
   return out
 }
+
+// ── 시험지 문항 연결 ──────────────────────────
+function parseRange(v: string): [number, number] | null {
+  const m = v.replace(/\s/g, '').match(/^(\d{1,3})[-~](\d{1,3})$/)
+  if (!m) return null
+  const a = Number(m[1]), b = Number(m[2])
+  return a >= 1 && b >= a && b - a < 60 ? [a, b] : null
+}
+
+export async function createExamMapAction(fd: FormData) {
+  await requireAdmin()
+  const { examKey, saveExamMap, getExamMap } = await import('@/lib/kakao/store')
+  const { draftExamItems, blankItems } = await import('@/lib/exam/analyze')
+  const { CLAUDE_MODEL } = await import('@/lib/claude')
+  const title = String(fd.get('title') || '').trim()
+  const range = parseRange(String(fd.get('range') || '1-22'))
+  const mode = String(fd.get('mode') || 'ai')
+  const file = fd.get('file')
+  if (!title) redirect(`/admin/exams?error=${encodeURIComponent('패스드림 시험명을 고르세요')}`)
+  if (!range) redirect(`/admin/exams?error=${encodeURIComponent('문항 범위는 1-22 처럼 쓰세요')}`)
+  const id = examKey(title)
+  const existing = await getExamMap(id)
+  if (existing?.status === 'confirmed') redirect(`/admin/exams/${encodeURIComponent(id)}?error=${encodeURIComponent('이미 확정된 시험입니다. 고치려면 이 화면에서 수정하세요')}`)
+
+  let items = blankItems(range[0], range[1])
+  let model = 'manual'
+  let note = ''
+  const source = file instanceof File && file.size ? file.name : ''
+  if (mode === 'ai') {
+    if (!(file instanceof File) || !file.size) redirect(`/admin/exams?error=${encodeURIComponent('시험지 PDF를 올리세요')}`)
+    if (file.size > 4 * 1024 * 1024) redirect(`/admin/exams?error=${encodeURIComponent('PDF가 4MB를 넘습니다 — 공통과목 쪽만 따로 저장해 올려 주세요')}`)
+    try {
+      items = await draftExamItems(Buffer.from(await file.arrayBuffer()).toString('base64'), range[0], range[1])
+      model = CLAUDE_MODEL
+    } catch (e) {
+      console.error('시험지 분석 실패', e)
+      const status = (e as { status?: number }).status
+      const why = status === 401 ? 'API 키를 확인하세요' : status === 429 ? '요청이 많아 잠시 뒤 다시 시도하세요'
+        : e instanceof Error ? e.message.slice(0, 80) : '오류'
+      note = `AI 초안을 만들지 못해 빈 표로 시작합니다 — ${why}. 직접 고르거나 잠시 뒤 다시 올려 주세요`
+    }
+  }
+  await saveExamMap({ id, title, items, status: 'draft', source, model, createdAt: Date.now(), confirmedAt: null })
+  redirect(`/admin/exams/${encodeURIComponent(id)}${note ? `?error=${encodeURIComponent(note)}` : ''}`)
+}
+
+export async function saveExamMapAction(fd: FormData) {
+  await requireAdmin()
+  const { getExamMap, saveExamMap } = await import('@/lib/kakao/store')
+  const { findTopic } = await import('@/lib/kakao/curriculum')
+  const id = String(fd.get('id'))
+  const m = await getExamMap(id)
+  if (!m) redirect('/admin/exams')
+  const items = m.items.map(it => {
+    const code = String(fd.get(`code_${it.no}`) ?? it.topic_code)
+    return {
+      ...it,
+      topic_code: findTopic(code) ? code : '',
+      summary: String(fd.get(`summary_${it.no}`) ?? it.summary).slice(0, 80),
+    }
+  })
+  const confirm = fd.get('intent') === 'confirm'
+  const missing = items.filter(it => !it.topic_code).map(it => it.no)
+  if (confirm && missing.length) {
+    await saveExamMap({ ...m, items })
+    redirect(`/admin/exams/${encodeURIComponent(id)}?error=${encodeURIComponent(`단원이 비어 있는 문항: ${missing.join(', ')}번`)}`)
+  }
+  await saveExamMap({ ...m, items, status: confirm ? 'confirmed' : 'draft', confirmedAt: confirm ? Date.now() : m.confirmedAt })
+  revalidatePath('/admin/exams')
+  redirect(`/admin/exams/${encodeURIComponent(id)}?saved=${confirm ? 'confirmed' : 'draft'}`)
+}

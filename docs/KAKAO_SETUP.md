@@ -33,6 +33,14 @@
 - 진단표: 질문 기록과 테스트 결과를 함께 반영. 질문이 적어도 테스트가 `DIAG_MIN_TESTS`(기본 2)회 이상이면 생성
 - 패스드림은 API를 제공하지 않으므로 PDF 업로드가 유일한 연동 경로. 리포트 형식이 바뀌면 읽기가 깨질 수 있음 — 가져오기 결과의 경고 문구(단원 합계 불일치 등)를 확인
 
+## 시험지 문항 연결 (세부 단원 진단)
+1. 패스드림 결과를 먼저 가져온 뒤 `/admin/exams`에서 그 시험명을 고르고 시험지 PDF(4MB 이하)와 문항 범위(예: 1-22) 입력
+2. 「AI 초안 만들기」: Claude가 문항마다 2022 개정 세부 단원 초안 작성 (1~2분). 「직접 입력」도 가능
+3. 화면 위쪽의 「패스드림 단원별 문항 수와 비교」가 모두 ✓인지 확인 → 문항별로 검토 → 「확정」
+4. 확정된 시험은 학생이 틀린 문항이 세부 단원으로 진단표·개인 페이지에 표시됨
+- 틀린 문항 번호가 리포트에서 전부 확인되지 않은 시험은 세부 단원 집계에서 뺌 (맞은 것으로 잘못 세지 않도록)
+- 패스드림 시험명과 시험지 표지 이름이 달라도 됨 — 업로드할 때 패스드림 시험명을 고르는 것으로 연결
+
 ## 흐름
 1. 학생이 채널 채팅방에 문제 사진(가능하면 자기 풀이 포함)을 보냄
 2. `/api/kakao/skill` 이 5초 안에 "풀이 중" 즉답 (콜백 사용)
@@ -77,7 +85,7 @@ BRAIN_API_TOKEN=
 
 ### Firestore
 - `firestore.rules` 배포 (kakao_* 컬렉션은 클라이언트 접근 차단)
-- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status` / `test_results` — `studentId` + `importedAt` (오름차순·내림차순 각각) / `kakao_questions` — `studentId` + `createdAt` 내림차순 / `kakao_reports` — `studentId` + `createdAt` 내림차순
+- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status` / `test_results` — `studentId` + `importedAt` (오름차순·내림차순 각각) / `kakao_questions` — `studentId` + `createdAt` 내림차순 / `kakao_reports` — `studentId` + `createdAt` 내림차순 (`exam_maps`는 색인 불필요)
 - 색인이 없으면 첫 조회 때 오류 메시지에 색인 생성 링크가 나옴 — 눌러서 만들면 됨
 
 ### 응답 시간

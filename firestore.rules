@@ -14,5 +14,6 @@ service cloud.firestore {
     match /students/{docId}        { allow read, write: if false; }
     match /academies/{docId}       { allow read, write: if false; }
     match /test_results/{docId}    { allow read, write: if false; }
+    match /exam_maps/{docId}       { allow read, write: if false; }
   }
 }
