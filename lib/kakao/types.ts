@@ -45,9 +45,18 @@ export interface QuestionRecord {
   id: string
   userKey: string
   createdAt: number
+  status?: 'done'
   note: NoteData
   model: string
   brainUsed: boolean
+}
+
+/** 답변 작성 중이거나 실패한 질문 (1분 콜백을 넘긴 경우 노트 링크가 먼저 나간다) */
+export interface PendingQuestion {
+  id: string
+  userKey: string
+  createdAt: number
+  status: 'pending' | 'failed'
 }
 
 export interface TopicStat {

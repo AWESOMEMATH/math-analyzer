@@ -2,9 +2,10 @@ import Anthropic from '@anthropic-ai/sdk'
 import { topicCatalog, findTopic } from './curriculum'
 import { brainPromptBlock, fetchBrainContext } from './brain'
 import type { ErrorType, NoteData } from './types'
+import { CLAUDE_MODEL, DEFAULT_EFFORT, MAX_TOKENS, textOf, type Effort } from '@/lib/claude'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-export const ANSWER_MODEL = process.env.KAKAO_MODEL || 'claude-sonnet-5-5'
+export const ANSWER_MODEL = process.env.KAKAO_MODEL || CLAUDE_MODEL
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 type ImageMedia = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
@@ -127,10 +128,9 @@ export async function answerFromImage(
   const brain = await fetchBrainContext(studentText || '수학 문제')
   const res = await anthropic.messages.create({
     model: ANSWER_MODEL,
-    // 생각(thinking) 토큰도 max_tokens에 포함된다 — 4000이면 JSON이 잘릴 수 있다
-    max_tokens: 16000,
-    // 1분 콜백 안에 끝내고 출력 토큰(비용의 대부분)을 줄이기 위해 medium
-    output_config: { effort: (process.env.KAKAO_EFFORT as 'low' | 'medium' | 'high') || 'medium' },
+    // 생각(thinking) 토큰도 max_tokens에 포함된다
+    max_tokens: MAX_TOKENS,
+    output_config: { effort: (process.env.KAKAO_EFFORT as Effort) || DEFAULT_EFFORT },
     // 교육과정 코드표가 든 시스템 프롬프트는 매번 같으므로 캐시 (입력 단가 1/10)
     system: [
       { type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } },
@@ -146,9 +146,8 @@ export async function answerFromImage(
       },
     ],
   })
-  if (res.stop_reason === 'max_tokens') throw new Error('응답이 길이 제한에서 잘렸습니다.')
   console.log('kakao answer usage', JSON.stringify(res.usage))
-  const text = res.content.map(b => (b.type === 'text' ? b.text : '')).join('')
+  const text = textOf(res)
   const j = extractJSON(text)
   if (!j) throw new Error('AI 응답 파싱 실패')
   return { note: normalize(j), brainUsed: !!brain }

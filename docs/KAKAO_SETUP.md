@@ -27,7 +27,11 @@
 ### 환경변수
 ```
 ANTHROPIC_API_KEY=...
-KAKAO_MODEL=claude-sonnet-5-5          # 1분 콜백 안에 끝나야 하므로 Opus는 비권장
+CLAUDE_MODEL=claude-opus-5-5           # 앱 전체 기본 모델 (기본값)
+CLAUDE_EFFORT=medium                   # low | medium | high | max
+KAKAO_MODEL=                           # 카카오만 다른 모델을 쓸 때 (비우면 CLAUDE_MODEL)
+KAKAO_EFFORT=                          # 카카오만 다른 생각 깊이를 쓸 때
+KAKAO_CALLBACK_DEADLINE_MS=45000       # 이 시간 안에 답이 안 나오면 노트 링크를 먼저 보냄
 KAKAO_SKILL_SECRET=<임의 문자열>
 PUBLIC_BASE_URL=https://<도메인>
 FIREBASE_SERVICE_ACCOUNT=<서비스 계정 JSON 한 줄>
@@ -40,6 +44,11 @@ BRAIN_API_TOKEN=
 ### Firestore
 - `firestore.rules` 배포 (kakao_* 컬렉션은 클라이언트 접근 차단)
 - 복합 색인: `kakao_questions` — `userKey` 오름차순 + `createdAt` 오름차순
+
+### 응답 시간
+Opus 5.5는 1분 콜백 제한을 넘길 수 있습니다. 45초 안에 답이 끝나지 않으면 「작성 중」 노트 링크를 먼저 보내고,
+노트 페이지는 10초마다 새로고침되다가 완성되면 풀이를 보여 줍니다. 함수 실행 시간(`maxDuration`)은 300초로 두었으므로
+Vercel에서 Fluid Compute(또는 300초 이상 허용되는 요금제)가 켜져 있어야 합니다.
 
 ## 브레인 연동
 브레인 DB(약 4.4GB)는 연구실 PC에 있어 서버가 직접 열 수 없습니다. 연구실 PC에서

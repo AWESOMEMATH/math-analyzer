@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { findTopic, loadTopics } from './curriculum'
 import { ANSWER_MODEL } from './answer'
+import { MAX_TOKENS, textOf } from '@/lib/claude'
 import { CYCLE_MS, getOrCreateUser, listQuestions, newId, saveReport, updateUser } from './store'
 import { ERROR_TYPE_LABEL, type DiagnosisReport, type ErrorType, type QuestionRecord, type TopicStat } from './types'
 
@@ -79,7 +80,7 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
 
   const res = await anthropic.messages.create({
     model: ANSWER_MODEL,
-    max_tokens: 3000,
+    max_tokens: MAX_TOKENS,
     system: SOLUTION_SYSTEM,
     messages: [{
       role: 'user',
@@ -91,7 +92,7 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
       }),
     }],
   })
-  const text = res.content.map(b => (b.type === 'text' ? b.text : '')).join('')
+  const text = textOf(res)
   const m = text.match(/\{[\s\S]*\}/)
   if (!m) throw new Error('진단 처방 파싱 실패')
   const j = JSON.parse(m[0]) as DiagnosisReport['solution']

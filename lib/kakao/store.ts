@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
 import { getAdminDb } from '@/lib/firebaseAdmin'
-import type { DiagnosisReport, NoteData, QuestionRecord } from './types'
+import type { DiagnosisReport, NoteData, PendingQuestion, QuestionRecord } from './types'
 
 const Q = 'kakao_questions'
 const U = 'kakao_users'
@@ -35,15 +35,30 @@ export async function updateUser(userKey: string, patch: Partial<KakaoUser>) {
   await getAdminDb().collection(U).doc(userKey).set(patch, { merge: true })
 }
 
-export async function saveQuestion(userKey: string, note: NoteData, model: string, brainUsed: boolean) {
-  const rec: QuestionRecord = { id: newId(), userKey, createdAt: Date.now(), note, model, brainUsed }
+/** 노트 링크를 미리 보낼 수 있도록 작성 중 상태로 먼저 만든다 */
+export async function createPendingQuestion(userKey: string): Promise<PendingQuestion> {
+  const p: PendingQuestion = { id: newId(), userKey, createdAt: Date.now(), status: 'pending' }
+  await getAdminDb().collection(Q).doc(p.id).set(p)
+  return p
+}
+
+export async function completeQuestion(p: PendingQuestion, note: NoteData, model: string, brainUsed: boolean) {
+  const rec: QuestionRecord = { id: p.id, userKey: p.userKey, createdAt: p.createdAt, status: 'done', note, model, brainUsed }
   await getAdminDb().collection(Q).doc(rec.id).set(rec)
   return rec
 }
 
-export async function getQuestion(id: string): Promise<QuestionRecord | null> {
+export async function failQuestion(id: string) {
+  await getAdminDb().collection(Q).doc(id).set({ status: 'failed' }, { merge: true })
+}
+
+export async function getQuestion(id: string): Promise<QuestionRecord | PendingQuestion | null> {
   const snap = await getAdminDb().collection(Q).doc(id).get()
-  return snap.exists ? (snap.data() as QuestionRecord) : null
+  return snap.exists ? (snap.data() as QuestionRecord | PendingQuestion) : null
+}
+
+export function isDone(q: QuestionRecord | PendingQuestion | null): q is QuestionRecord {
+  return !!q && 'note' in q && !!q.note
 }
 
 export async function listQuestions(userKey: string, from: number, to: number): Promise<QuestionRecord[]> {
@@ -55,7 +70,8 @@ export async function listQuestions(userKey: string, from: number, to: number): 
     .where('createdAt', '<', to)
     .orderBy('createdAt', 'asc')
     .get()
-  return snap.docs.map(d => d.data() as QuestionRecord)
+  // 작성 중·실패 문서는 진단 집계에서 뺀다
+  return snap.docs.map(d => d.data() as QuestionRecord).filter(q => !!q.note)
 }
 
 export async function saveReport(report: DiagnosisReport) {

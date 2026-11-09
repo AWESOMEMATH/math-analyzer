@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { getQuestion } from '@/lib/kakao/store'
+import { getQuestion, isDone } from '@/lib/kakao/store'
 import { findTopic } from '@/lib/kakao/curriculum'
 import { ERROR_TYPE_LABEL } from '@/lib/kakao/types'
 import MathText from '../MathText'
@@ -15,8 +15,28 @@ export const metadata: Metadata = { title: 'AWESOME 손글씨 노트', robots: {
 
 export default async function NotePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const rec = await getQuestion(id).catch(() => null)
-  if (!rec) notFound()
+  const q = await getQuestion(id).catch(() => null)
+  if (!q) notFound()
+  if (!isDone(q)) {
+    const failed = q.status === 'failed'
+    return (
+      <main className="awn">
+        <Fonts />
+        {!failed && <meta httpEquiv="refresh" content="10" />}
+        <div className="brand">AWESOME MATH LAB</div>
+        <h1 className="title">어썸 손글씨 노트</h1>
+        <div className="row" style={{ alignItems: 'center' }}>
+          <Mascot mood={failed ? 'pout' : 'oh'} size={72} />
+          <div className="bubble">
+            {failed
+              ? '이 사진은 풀이를 만들지 못했어요. 문제 전체가 보이게 다시 찍어 카톡으로 보내 주세요.'
+              : '풀이를 쓰고 있어요. 이 화면은 10초마다 저절로 새로고침돼요.'}
+          </div>
+        </div>
+      </main>
+    )
+  }
+  const rec = q
   const n = rec.note
   const t = findTopic(n.topic_code)
 

@@ -7,13 +7,14 @@ import { after, NextRequest, NextResponse } from 'next/server'
 import { answerFromImage, ANSWER_MODEL, downloadImage } from '@/lib/kakao/answer'
 import { MIN_QUESTIONS, runDiagnosis } from '@/lib/kakao/diagnosis'
 import { findTopic } from '@/lib/kakao/curriculum'
-import { getOrCreateUser, getReport, saveQuestion, updateUser } from '@/lib/kakao/store'
+import { completeQuestion, createPendingQuestion, failQuestion, getOrCreateUser, getReport, updateUser } from '@/lib/kakao/store'
 import { baseUrl, callbackAck, linkCard, postCallback, simpleText, template } from '@/lib/kakao/respond'
 import type { KakaoSkillRequest } from '@/lib/kakao/types'
 import type { DiagnosisReport } from '@/lib/kakao/types'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+// 1분 콜백을 넘겨도 답변을 끝까지 만들기 위해 함수 실행 시간은 넉넉히 둔다
+export const maxDuration = 300
 
 const HELP = `📸 문제 사진을 한 장씩 보내 주세요.
 ✍️ 내 풀이까지 같이 찍어 보내면 어디서 틀렸는지 짚어 드려요.
@@ -47,52 +48,74 @@ function reportCard(r: DiagnosisReport) {
   )
 }
 
+// 카카오 콜백은 1분 안에 한 번만 보낼 수 있다. Opus 답변이 이보다 늦으면
+// 노트 링크를 먼저 보내고(페이지는 "작성 중" 표시 후 자동 새로고침), 답변은 계속 만든다.
+const CALLBACK_DEADLINE_MS = Number(process.env.KAKAO_CALLBACK_DEADLINE_MS || 45000)
+
+function noteCard(id: string, description: string) {
+  return linkCard('✏️ AWESOME 손글씨 노트', description, '풀이 노트 보기', `${baseUrl()}/note/${id}`)
+}
+
 async function handleImage(body: KakaoSkillRequest, imageUrl: string) {
   const userKey = body.userRequest.user.id
   const callbackUrl = body.userRequest.callbackUrl!
+  let callbackSent = false
+  const send = async (outputs: Parameters<typeof template>[0]) => {
+    if (callbackSent) return
+    callbackSent = true
+    await postCallback(callbackUrl, template(outputs))
+  }
+
+  let pending: Awaited<ReturnType<typeof createPendingQuestion>> | null = null
+  const timer = setTimeout(() => {
+    if (!pending) return
+    send([noteCard(pending.id, '풀이가 길어지고 있어요. 1~2분 뒤 버튼을 눌러 주세요. 완성되면 노트가 자동으로 열려요.')])
+      .catch(e => console.error('지연 콜백 실패', e))
+  }, CALLBACK_DEADLINE_MS)
+
   try {
     const user = await getOrCreateUser(userKey)
+    pending = await createPendingQuestion(userKey)
     const image = await downloadImage(imageUrl)
     const { note, brainUsed } = await answerFromImage(image)
 
     if (!note.legible) {
-      await postCallback(callbackUrl, template([
+      await failQuestion(pending.id)
+      await send([
         simpleText('사진에서 문제를 정확히 읽지 못했어요. 문제 전체가 화면에 들어오게, 밝은 곳에서 그림자 없이 다시 찍어 보내 주세요.'),
-      ]))
+      ])
       return
     }
 
-    const rec = await saveQuestion(userKey, note, ANSWER_MODEL, brainUsed)
+    const rec = await completeQuestion(pending, note, ANSWER_MODEL, brainUsed)
     const topic = findTopic(note.topic_code)
     const verdict =
       note.student_verdict === 'correct' ? '✅ 풀이가 맞았어요.' :
       note.student_verdict === 'wrong' ? '❗ 풀이에서 틀린 지점이 있어요.' : ''
 
     const outputs = [
-      linkCard(
-        '✏️ AWESOME 손글씨 노트',
-        [topic ? `${topic.course} · ${topic.topic}` : '', verdict, `정답 ${note.answer}`].filter(Boolean).join('\n'),
-        '풀이 노트 보기',
-        `${baseUrl()}/note/${rec.id}`,
-      ),
+      noteCard(rec.id, [topic ? `${topic.course} · ${topic.topic}` : '', verdict, `정답 ${note.answer}`].filter(Boolean).join('\n')),
     ]
 
-    // 4주가 지났으면 이번 질문을 포함해 진단표를 만든다
+    // 4주가 지났으면 이번 질문을 포함해 진단표를 만든다 (콜백을 이미 보냈다면 다음 메시지에 붙는다)
     const d = await runDiagnosis(userKey, false).catch(e => { console.error('진단 실패', e); return null })
-    if (d?.status === 'created') {
-      outputs.push(reportCard(d.report))
-      await updateUser(userKey, { pendingReportId: null })
-    } else if (user.pendingReportId) {
-      const r = await getReport(user.pendingReportId)
-      if (r) outputs.push(reportCard(r))
-      await updateUser(userKey, { pendingReportId: null })
+    if (!callbackSent) {
+      if (d?.status === 'created') {
+        outputs.push(reportCard(d.report))
+        await updateUser(userKey, { pendingReportId: null })
+      } else if (user.pendingReportId) {
+        const r = await getReport(user.pendingReportId)
+        if (r) outputs.push(reportCard(r))
+        await updateUser(userKey, { pendingReportId: null })
+      }
     }
-    await postCallback(callbackUrl, template(outputs))
+    await send(outputs)
   } catch (e) {
     console.error('카카오 답변 생성 실패', e)
-    await postCallback(callbackUrl, template([
-      simpleText('풀이를 만드는 중에 문제가 생겼어요. 잠시 뒤 같은 사진을 다시 보내 주세요.'),
-    ]))
+    if (pending) await failQuestion(pending.id).catch(() => {})
+    await send([simpleText('풀이를 만드는 중에 문제가 생겼어요. 잠시 뒤 같은 사진을 다시 보내 주세요.')])
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -135,7 +158,7 @@ export async function POST(req: NextRequest) {
       ]))
     }
     after(() => handleImage(body, imageUrl))
-    return NextResponse.json(callbackAck('사진 받았어요! 손글씨 노트로 풀이를 정리하고 있어요. 30초 정도 걸려요 ✏️'))
+    return NextResponse.json(callbackAck('사진 받았어요! 손글씨 노트로 풀이를 정리하고 있어요. 1분 정도 걸려요 ✏️'))
   }
 
   if (/진단/.test(utter)) {
