@@ -52,3 +52,8 @@ firestore.rules             ← Firestore 보안 규칙
 - Firebase 분석 이력 저장
 - 초대 코드 기반 접근 제한
 - 사용자별 월 문항 제한
+
+## 💬 카카오톡 자동 답변 · 4주 진단
+
+카카오톡 채널 챗봇(오픈빌더 스킬)으로 사진 질문 → 손글씨 노트 답변 → 4주 누적 진단표.
+설정과 한계는 [docs/KAKAO_SETUP.md](docs/KAKAO_SETUP.md) 참고.

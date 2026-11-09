@@ -7,5 +7,9 @@ service cloud.firestore {
     match /usage/{docId} {
       allow read, write: if true;  // MVP — 추후 Admin SDK로 전환 권장
     }
+    // 카카오 자동 답변 데이터(학생 질문·진단)는 서버(Admin SDK)만 접근한다
+    match /kakao_questions/{docId} { allow read, write: if false; }
+    match /kakao_users/{docId}     { allow read, write: if false; }
+    match /kakao_reports/{docId}   { allow read, write: if false; }
   }
 }

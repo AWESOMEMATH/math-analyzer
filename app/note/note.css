@@ -1,0 +1,64 @@
+/* AWESOME 손글씨 노트 — awesome-handwriting-note 3절 폰트 체계.
+   Turbo 폰트는 재배포 불가라 웹 버전에서는 Permanent Marker로 대체한다. */
+.awn {
+  --ink: #26324a; --red: #e0483e; --teal: #0f9c85; --hl: #ffe45c; --paper: #fffdf6; --grid: #e8eef5;
+  color: var(--ink);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 6mm 6mm;
+  max-width: 210mm; margin: 0 auto; padding: 18px 16px 40px;
+  font-family: 'Gaegu', 'Pretendard', sans-serif; font-size: 19px; line-height: 1.55;
+  min-height: 100vh;
+}
+.awn * { box-sizing: border-box; }
+.awn .brand { font-family: 'Permanent Marker', 'Kalam', cursive; letter-spacing: .06em; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.awn .title { font-family: 'Nanum Pen Script', 'Gaegu', cursive; font-size: 34px; margin: 4px 0 2px; }
+.awn .unit { font-family: 'Pretendard', sans-serif; font-size: 13px; color: #5b6478; }
+.awn .tag { display: inline-block; background: var(--red); color: #fff; font-family: 'Pretendard', sans-serif; font-weight: 700; font-size: 12px; border-radius: 4px; padding: 2px 8px; margin-right: 6px; }
+.awn .why { margin: 8px 0 14px; }
+.awn .row { display: flex; gap: 8px; align-items: flex-start; }
+.awn .row > .box { flex: 1; min-width: 0; }
+.awn .box { border: 2.5px solid var(--ink); border-radius: 10px; padding: 12px 14px; margin: 12px 0; background: rgba(255,255,255,.75); }
+.awn .prob { font-family: 'Pretendard', sans-serif; font-size: 15px; line-height: 1.75; }
+.awn .prob .lab, .awn .boxlab { font-family: 'Pretendard', sans-serif; font-weight: 800; font-size: 12px; color: var(--teal); margin-bottom: 4px; }
+.awn .step h3 { font-family: 'Nanum Pen Script', cursive; font-size: 28px; font-weight: 400; margin: 18px 0 4px; }
+.awn .step h3 .n { font-family: 'Permanent Marker', cursive; font-size: 15px; background: var(--hl); padding: 0 6px; margin-right: 8px; border-radius: 3px; }
+/* 손글씨 수식 — 구조는 KaTeX, 글자만 Kalam. Kalam에 없는 기호는 KaTeX_Main으로 */
+.awn .hand .katex * { font-family: 'Kalam', 'KaTeX_Main' !important; font-style: normal !important; }
+.awn .hand p { margin: 4px 0; }
+.awn .hand { overflow-x: auto; }
+.awn .check { border-color: var(--teal); }
+.awn .trap { border-color: var(--red); border-style: dashed; }
+.awn .trap .boxlab { color: var(--red); }
+.awn .bubble { position: relative; background: #fff; border: 2px solid var(--ink); border-radius: 14px; padding: 8px 12px; margin: 10px 0; font-size: 18px; }
+.awn .stamp { display: inline-block; border: 3px solid var(--red); color: var(--red); border-radius: 10px; padding: 4px 14px; transform: rotate(-4deg); font-family: 'Nanum Pen Script', cursive; font-size: 28px; margin: 12px 0; }
+.awn .stamp .hand { display: inline-block; }
+.awn .sum { border-color: var(--ink); background: #fff8d6; }
+.awn .sum .tb { font-family: 'Permanent Marker', cursive; letter-spacing: .05em; font-size: 16px; }
+.awn .sum ol { margin: 6px 0 0; padding-left: 22px; }
+.awn .verdict { font-family: 'Pretendard', sans-serif; font-size: 14px; font-weight: 700; }
+.awn .verdict.ok { color: var(--teal); }
+.awn .verdict.ng { color: var(--red); }
+.awn .foot { font-family: 'Pretendard', sans-serif; font-size: 11px; color: #8a92a3; margin-top: 24px; text-align: right; }
+.awn .print { font-family: 'Pretendard', sans-serif; font-size: 13px; border: 1px solid var(--ink); background: #fff; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+@media print {
+  .awn { min-height: 0; padding: 10mm; }
+  .awn .print { display: none; }
+}
+
+/* 진단표 */
+.awr table { width: 100%; border-collapse: collapse; font-family: 'Pretendard', sans-serif; font-size: 13px; background: #fff; }
+.awr th, .awr td { border: 1px solid #c9d1de; padding: 6px 8px; text-align: left; vertical-align: top; }
+.awr th { background: #eef3f9; font-weight: 700; }
+.awr td.num { text-align: right; white-space: nowrap; }
+.awr .bar { height: 8px; background: var(--red); border-radius: 4px; }
+.awr .tablewrap { overflow-x: auto; }
+.awr .week { margin: 8px 0; }
+.awr .week b { font-family: 'Nanum Pen Script', cursive; font-size: 24px; font-weight: 400; margin-right: 6px; }
+.awr .caveat { font-family: 'Pretendard', sans-serif; font-size: 12px; color: #5b6478; }
+.awn .row > svg { flex-shrink: 0; }
+.awr table { min-width: 560px; }
+.awr th, .awr td.num { white-space: nowrap; }
+.awn .katex { color: inherit; }
