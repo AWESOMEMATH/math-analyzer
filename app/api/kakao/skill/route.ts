@@ -1,5 +1,7 @@
 // 카카오 i 오픈빌더 스킬 서버 — 카카오톡 채널 챗봇의 폴백 블록에 연결한다.
 //
+// 연결: 선생님이 등록한 학생에게 1회용 코드(AW-XXXX) 발급 → 학생이 채널에 코드 전송
+//       → 개인정보 동의 → 카카오 계정과 학생 연결. 연결 전에는 사진을 처리하지 않는다.
 // 흐름: 학생이 사진 전송 → 5초 안에 "풀이 중" 즉답(useCallback) → after()에서
 //       이미지 다운로드 → Claude 풀이 → 손글씨 노트 저장 → callbackUrl로 노트 링크 전송
 //       (콜백 유효 시간 1분) → 진단표가 준비돼 있으면 함께 전달.
@@ -7,10 +9,13 @@ import { after, NextRequest, NextResponse } from 'next/server'
 import { answerFromImage, ANSWER_MODEL, downloadImage } from '@/lib/kakao/answer'
 import { MIN_QUESTIONS, runDiagnosis } from '@/lib/kakao/diagnosis'
 import { findTopic } from '@/lib/kakao/curriculum'
-import { completeQuestion, createPendingQuestion, failQuestion, getOrCreateUser, getReport, updateUser } from '@/lib/kakao/store'
-import { baseUrl, callbackAck, linkCard, postCallback, simpleText, template } from '@/lib/kakao/respond'
-import type { KakaoSkillRequest } from '@/lib/kakao/types'
-import type { DiagnosisReport } from '@/lib/kakao/types'
+import {
+  completeQuestion, confirmLink, createPendingQuestion, failQuestion, findStudentByCode,
+  getLink, getReport, getStudent, normalizeCode, setPendingLink, updateStudent,
+} from '@/lib/kakao/store'
+import { consentText } from '@/lib/kakao/consent'
+import { baseUrl, callbackAck, linkCard, postCallback, quick, simpleText, template } from '@/lib/kakao/respond'
+import type { DiagnosisReport, KakaoSkillRequest, Student } from '@/lib/kakao/types'
 
 export const runtime = 'nodejs'
 // 1분 콜백을 넘겨도 답변을 끝까지 만들기 위해 함수 실행 시간은 넉넉히 둔다
@@ -56,7 +61,7 @@ function noteCard(id: string, description: string) {
   return linkCard('✏️ AWESOME 손글씨 노트', description, '풀이 노트 보기', `${baseUrl()}/note/${id}`)
 }
 
-async function handleImage(body: KakaoSkillRequest, imageUrl: string) {
+async function handleImage(body: KakaoSkillRequest, imageUrl: string, student: Student) {
   const userKey = body.userRequest.user.id
   const callbackUrl = body.userRequest.callbackUrl!
   let callbackSent = false
@@ -74,8 +79,7 @@ async function handleImage(body: KakaoSkillRequest, imageUrl: string) {
   }, CALLBACK_DEADLINE_MS)
 
   try {
-    const user = await getOrCreateUser(userKey)
-    pending = await createPendingQuestion(userKey)
+    pending = await createPendingQuestion(student, userKey)
     const image = await downloadImage(imageUrl)
     const { note, brainUsed } = await answerFromImage(image)
 
@@ -98,15 +102,15 @@ async function handleImage(body: KakaoSkillRequest, imageUrl: string) {
     ]
 
     // 4주가 지났으면 이번 질문을 포함해 진단표를 만든다 (콜백을 이미 보냈다면 다음 메시지에 붙는다)
-    const d = await runDiagnosis(userKey, false).catch(e => { console.error('진단 실패', e); return null })
+    const d = await runDiagnosis(student.id, false).catch(e => { console.error('진단 실패', e); return null })
     if (!callbackSent) {
       if (d?.status === 'created') {
         outputs.push(reportCard(d.report))
-        await updateUser(userKey, { pendingReportId: null })
-      } else if (user.pendingReportId) {
-        const r = await getReport(user.pendingReportId)
+        await updateStudent(student.id, { pendingReportId: null })
+      } else if (student.pendingReportId) {
+        const r = await getReport(student.pendingReportId)
         if (r) outputs.push(reportCard(r))
-        await updateUser(userKey, { pendingReportId: null })
+        await updateStudent(student.id, { pendingReportId: null })
       }
     }
     await send(outputs)
@@ -119,14 +123,14 @@ async function handleImage(body: KakaoSkillRequest, imageUrl: string) {
   }
 }
 
-async function handleDiagnosisRequest(userKey: string) {
-  const d = await runDiagnosis(userKey, true)
+async function handleDiagnosisRequest(studentId: string) {
+  const d = await runDiagnosis(studentId, true)
   if (d.status === 'created') {
-    await updateUser(userKey, { pendingReportId: null })
+    await updateStudent(studentId, { pendingReportId: null })
     return template([reportCard(d.report)])
   }
-  const user = await getOrCreateUser(userKey)
-  const last = user.lastReportId ? await getReport(user.lastReportId) : null
+  const st = await getStudent(studentId)
+  const last = st?.lastReportId ? await getReport(st.lastReportId) : null
   const msg = `이번 4주 주기 질문 ${d.count}건 · 마감까지 ${d.daysLeft}일 남았어요.\n진단표는 질문이 ${MIN_QUESTIONS}건 이상 쌓이면 만들어져요. (앞으로 ${Math.max(0, MIN_QUESTIONS - d.count)}건)`
   return template(last ? [simpleText(msg), reportCard(last)] : [simpleText(msg)])
 }
@@ -150,6 +154,31 @@ export async function POST(req: NextRequest) {
   const imageUrl = extractImageUrl(body)
   const utter = (body.userRequest.utterance || '').trim()
 
+  // ── 연결 단계: 선생님이 준 코드 → 동의 → 학생 연결 ──
+  const link = await getLink(userKey)
+  const code = imageUrl ? null : normalizeCode(utter)
+  if (code) {
+    const st = await findStudentByCode(code)
+    if (!st) return NextResponse.json(template([simpleText('연결 코드를 찾을 수 없어요. 선생님께 받은 코드를 다시 확인해 주세요. (예: AW-7K3P)')], []))
+    await setPendingLink(userKey, st.id, code)
+    return NextResponse.json(template([simpleText(consentText(st.name))], quick('동의합니다', '동의하지 않습니다')))
+  }
+  if (link.pendingStudentId && /^동의하지\s*않/.test(utter)) {
+    await setPendingLink(userKey, null, null)
+    return NextResponse.json(template([simpleText('동의하지 않아 연결하지 않았어요. 마음이 바뀌면 코드를 다시 보내 주세요.')], []))
+  }
+  if (link.pendingStudentId && link.pendingCode && /^동의/.test(utter)) {
+    const st = await confirmLink(userKey, link.pendingStudentId, link.pendingCode)
+    if (!st) return NextResponse.json(template([simpleText('코드가 바뀌었거나 사용할 수 없어요. 선생님께 새 코드를 받아 주세요.')], []))
+    return NextResponse.json(template([simpleText(`${st.name} 학생, 연결됐어요! 🎉\n\n${HELP}`)]))
+  }
+  const student = link.studentId ? await getStudent(link.studentId) : null
+  if (!student || !student.active || student.kakaoUserKey !== userKey) {
+    return NextResponse.json(template([
+      simpleText('AWESOME 질문방이에요. 선생님께 받은 연결 코드(예: AW-7K3P)를 보내 주세요.'),
+    ], []))
+  }
+
   if (imageUrl) {
     if (!body.userRequest.callbackUrl) {
       // 콜백이 꺼져 있으면 5초 안에 답할 수 없다 — 설정 문제를 바로 알린다
@@ -157,7 +186,7 @@ export async function POST(req: NextRequest) {
         simpleText('지금은 사진 풀이를 받을 수 없어요. (관리자: 오픈빌더 블록의 "콜백 사용"을 켜 주세요)'),
       ]))
     }
-    after(() => handleImage(body, imageUrl))
+    after(() => handleImage(body, imageUrl, student))
     return NextResponse.json(callbackAck('사진 받았어요! 손글씨 노트로 풀이를 정리하고 있어요. 1분 정도 걸려요 ✏️'))
   }
 
@@ -167,12 +196,12 @@ export async function POST(req: NextRequest) {
       if (body.userRequest.callbackUrl) {
         const cb = body.userRequest.callbackUrl
         after(async () => {
-          try { await postCallback(cb, await handleDiagnosisRequest(userKey)) }
+          try { await postCallback(cb, await handleDiagnosisRequest(student.id)) }
           catch (e) { console.error(e); await postCallback(cb, template([simpleText('진단표를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.')])) }
         })
         return NextResponse.json(callbackAck('진단표를 확인하고 있어요 📊'))
       }
-      return NextResponse.json(await handleDiagnosisRequest(userKey))
+      return NextResponse.json(await handleDiagnosisRequest(student.id))
     } catch (e) {
       console.error(e)
       return NextResponse.json(template([simpleText('진단표를 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.')]))

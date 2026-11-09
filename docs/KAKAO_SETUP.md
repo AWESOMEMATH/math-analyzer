@@ -7,6 +7,15 @@
 - 카카오톡 채널 + 카카오 i 오픈빌더 스킬 서버는 공식 경로이며, 사진 URL과 채널별 고정 사용자 키(botUserKey)를 줍니다.
 - 운영 방식: 오픈채팅방 공지에 채널 링크를 걸고 "사진 질문은 채널로 1:1로 보내기"로 안내합니다.
 
+## 학생 등록과 연결
+1. `/admin` (비밀번호 `ADMIN_PASSWORD`)에서 학원 추가 → 학생 등록(한 명씩 또는 엑셀 붙여넣기)
+2. 학생마다 1회용 연결 코드(`AW-XXXX`)가 나옴 → 학생에게 채널 링크와 함께 전달
+3. 학생이 채널에 코드 전송 → 개인정보·국외 이전 동의 → 연결 완료. 연결 전에는 사진을 처리하지 않음
+4. 휴대폰 교체 등은 「코드 재발급」 — 기존 카톡 연결은 끊기고 질문 기록은 학생에게 남음
+- 질문·진단 기록은 카카오 계정이 아니라 학생 기준으로 쌓임
+- 목표 수능 학년도가 2028 이상이면 2022 개정, 그 전이면 2015 개정으로 표시·처방
+- 동의 문구(`lib/kakao/consent.ts`)는 초안 — 법률 검토 후 `CONSENT_OPERATOR`, `CONSENT_RETENTION`, `CONSENT_CONTACT` 설정
+
 ## 흐름
 1. 학생이 채널 채팅방에 문제 사진(가능하면 자기 풀이 포함)을 보냄
 2. `/api/kakao/skill` 이 5초 안에 "풀이 중" 즉답 (콜백 사용)
@@ -37,13 +46,18 @@ PUBLIC_BASE_URL=https://<도메인>
 FIREBASE_SERVICE_ACCOUNT=<서비스 계정 JSON 한 줄>
 CRON_SECRET=<임의 문자열>               # Vercel Cron이 Authorization: Bearer 로 보냄
 DIAG_MIN_QUESTIONS=8
+ADMIN_PASSWORD=<관리자 비밀번호>
+KAKAO_CHANNEL_URL=<카카오톡 채널 링크>
+CONSENT_OPERATOR=
+CONSENT_RETENTION=
+CONSENT_CONTACT=
 BRAIN_API_URL=                         # 선택 — 연구실 PC 브레인 조회 서버
 BRAIN_API_TOKEN=
 ```
 
 ### Firestore
 - `firestore.rules` 배포 (kakao_* 컬렉션은 클라이언트 접근 차단)
-- 복합 색인: `kakao_questions` — `userKey` 오름차순 + `createdAt` 오름차순
+- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status`
 
 ### 응답 시간
 Opus 5.5는 1분 콜백 제한을 넘길 수 있습니다. 45초 안에 답이 끝나지 않으면 「작성 중」 노트 링크를 먼저 보내고,

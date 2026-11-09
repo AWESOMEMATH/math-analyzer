@@ -41,8 +41,40 @@ export interface NoteData {
   legible: boolean              // 사진 판독 가능 여부
 }
 
+// ── 학원·학생 명부 ──────────────────────────────
+export interface Academy {
+  id: string
+  name: string
+  createdAt: number
+}
+
+/** enrolled = 재학생, repeat = N수생 */
+export type StudentStatus = 'enrolled' | 'repeat'
+
+export interface Student {
+  id: string
+  name: string
+  status: StudentStatus
+  grade: 1 | 2 | 3 | null        // N수생은 null
+  school: string                 // N수생은 출신 고교 (선택)
+  academyId: string
+  targetYear: number             // 목표 수능 학년도 (2028 = 2022 개정 교육과정 첫 수능)
+  memo: string
+  active: boolean
+  createdAt: number
+  // 카카오 연결
+  linkCode: string | null        // 1회용 연결 코드, 연결되면 null
+  kakaoUserKey: string | null
+  consentAt: number | null
+  // 4주 진단 주기 (첫 질문 시각부터)
+  cycleStart: number | null
+  pendingReportId: string | null
+  lastReportId: string | null
+}
+
 export interface QuestionRecord {
   id: string
+  studentId: string
   userKey: string
   createdAt: number
   status?: 'done'
@@ -54,6 +86,7 @@ export interface QuestionRecord {
 /** 답변 작성 중이거나 실패한 질문 (1분 콜백을 넘긴 경우 노트 링크가 먼저 나간다) */
 export interface PendingQuestion {
   id: string
+  studentId: string
   userKey: string
   createdAt: number
   status: 'pending' | 'failed'
@@ -70,7 +103,7 @@ export interface TopicStat {
 
 export interface DiagnosisReport {
   id: string
-  userKey: string
+  studentId: string
   createdAt: number
   periodStart: number
   periodEnd: number

@@ -3,7 +3,7 @@
 // 만든 진단표는 pendingReportId로 걸어 두었다가 학생의 다음 메시지 응답에 붙여 보낸다.
 import { NextRequest, NextResponse } from 'next/server'
 import { runDiagnosis } from '@/lib/kakao/diagnosis'
-import { listDueUsers } from '@/lib/kakao/store'
+import { listDueStudents } from '@/lib/kakao/store'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -13,15 +13,15 @@ export async function GET(req: NextRequest) {
   if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const users = await listDueUsers()
+  const users = await listDueStudents()
   const result = { due: users.length, created: 0, notEnough: 0, failed: 0 }
   for (const u of users) {
     try {
-      const d = await runDiagnosis(u.userKey, false)
+      const d = await runDiagnosis(u.id, false)
       if (d.status === 'created') result.created++
       else if (d.status === 'not_enough') result.notEnough++
     } catch (e) {
-      console.error('진단 실패', u.userKey, e)
+      console.error('진단 실패', u.id, e)
       result.failed++
     }
   }

@@ -27,8 +27,14 @@ export function linkCard(title: string, description: string, label: string, url:
   }
 }
 
-export function template(outputs: Output[]) {
-  return { version: '2.0', template: { outputs: outputs.slice(0, 3), quickReplies: QUICK } }
+type Quick = { label: string; action: 'message'; messageText: string }
+
+export function quick(...labels: string[]): Quick[] {
+  return labels.map(l => ({ label: l, action: 'message', messageText: l }))
+}
+
+export function template(outputs: Output[], quickReplies: Quick[] = QUICK as Quick[]) {
+  return { version: '2.0', template: { outputs: outputs.slice(0, 3), ...(quickReplies.length ? { quickReplies } : {}) } }
 }
 
 /** 5초 안에 먼저 보내는 즉답 — 오픈빌더에서 콜백 사용이 켜져 있어야 한다 */

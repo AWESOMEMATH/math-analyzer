@@ -1,0 +1,30 @@
+.adm { --ink:#1f2937; --line:#e5e7eb; --sub:#6b7280; --acc:#0f9c85; --red:#dc2626; --bg:#f7f8fa;
+  max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; color: var(--ink); background: var(--bg);
+  font-family: 'Pretendard', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+.adm h1 { font-size: 22px; margin: 0 0 12px; }
+.adm h2 { font-size: 16px; margin: 0 0 10px; }
+.adm .top { display: flex; justify-content: space-between; align-items: center; }
+.adm .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; }
+.adm .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; align-items: end; }
+.adm label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); }
+.adm input, .adm select, .adm textarea { font: inherit; color: var(--ink); border: 1px solid #d1d5db; border-radius: 6px; padding: 7px 9px; background: #fff; }
+.adm textarea { width: 100%; font-family: ui-monospace, monospace; margin: 6px 0; }
+.adm button { font: inherit; border: 0; border-radius: 6px; padding: 8px 12px; background: var(--ink); color: #fff; cursor: pointer; }
+.adm button.ghost { background: #fff; color: var(--ink); border: 1px solid #d1d5db; padding: 4px 8px; font-size: 12px; }
+.adm .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.adm .tabs a { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.adm .tabs a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.adm .tablewrap { overflow-x: auto; }
+.adm table { width: 100%; min-width: 760px; border-collapse: collapse; }
+.adm th, .adm td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.adm th { font-size: 12px; color: var(--sub); font-weight: 600; }
+.adm td.num { text-align: right; }
+.adm td.acts { display: flex; gap: 4px; }
+.adm tr.off { opacity: .45; }
+.adm .code { font-family: ui-monospace, monospace; font-size: 15px; letter-spacing: .05em; }
+.adm .hint { font-size: 12px; color: var(--sub); }
+.adm .err { color: var(--red); }
+.adm .ok { color: var(--acc); }
+.adm details { margin-top: 12px; }
+.adm summary { cursor: pointer; color: var(--sub); }

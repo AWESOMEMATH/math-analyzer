@@ -11,5 +11,7 @@ service cloud.firestore {
     match /kakao_questions/{docId} { allow read, write: if false; }
     match /kakao_users/{docId}     { allow read, write: if false; }
     match /kakao_reports/{docId}   { allow read, write: if false; }
+    match /students/{docId}        { allow read, write: if false; }
+    match /academies/{docId}       { allow read, write: if false; }
   }
 }
