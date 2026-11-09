@@ -1,14 +1,35 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { findTopic, loadTopics } from './curriculum'
+import { chapterLabel, findTopic, loadTopics } from './curriculum'
 import { ANSWER_MODEL } from './answer'
 import { MAX_TOKENS, textOf } from '@/lib/claude'
-import { CYCLE_MS, getStudent, listQuestions, newId, saveReport, updateStudent } from './store'
-import { ERROR_TYPE_LABEL, type DiagnosisReport, type ErrorType, type QuestionRecord, type Student, type TopicStat } from './types'
+import { CYCLE_MS, getStudent, listQuestions, listTestResults, newId, saveReport, updateStudent } from './store'
+import { ERROR_TYPE_LABEL, type DiagnosisReport, type ErrorType, type QuestionRecord, type Student, type TestResult, type TestStat, type TopicStat } from './types'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 /** 이보다 적으면 진단표를 만들지 않는다 — 몇 문항으로 "취약 단원"을 단정하면 오진이 된다 */
 export const MIN_QUESTIONS = Number(process.env.DIAG_MIN_QUESTIONS || 8)
+/** 질문이 적어도 테스트가 이만큼 있으면 진단표를 만든다 */
+export const MIN_TESTS = Number(process.env.DIAG_MIN_TESTS || 2)
+
+/** 테스트 단원별 합계 — 같은 대단원끼리 여러 시험을 더한다 */
+export function aggregateTests(tests: TestResult[]): TestStat[] {
+  const map = new Map<string, TestStat>()
+  for (const t of tests) {
+    for (const u of t.units) {
+      const key = u.codes.length ? u.codes.join('+') : u.label
+      const st = map.get(key) ?? {
+        key, codes: u.codes, label: chapterLabel(u.codes) || u.label,
+        tests: 0, items: 0, correct: 0, classCorrect: 0, classTotal: 0,
+      }
+      st.tests++; st.items += u.items; st.correct += u.correct
+      st.classCorrect += u.classCorrect; st.classTotal += u.classTotal
+      map.set(key, st)
+    }
+  }
+  const order = new Map(loadTopics().map(t => [t.code.split('.').slice(0, 3).join('.'), t.order]))
+  return [...map.values()].sort((a, b) => (order.get(a.codes[0]) ?? 1e9) - (order.get(b.codes[0]) ?? 1e9))
+}
 
 export function aggregate(qs: QuestionRecord[]) {
   const map = new Map<string, TopicStat>()
@@ -46,11 +67,15 @@ export function examScope(targetYear: number): string {
   return `${targetYear}학년도 수능 (2015 개정 교육과정) — 공통 수학I·수학II + 선택(확률과 통계/미적분/기하). 단원 코드는 2022 개정 기준이므로 대응 단원으로 읽는다.`
 }
 
-function buildCaveats(qs: QuestionRecord[], stats: TopicStat[], st: Student): string[] {
+function buildCaveats(qs: QuestionRecord[], stats: TopicStat[], st: Student, tests: TestResult[] = []): string[] {
   const c: string[] = []
+  const small = tests.filter(t => t.classSize && t.classSize < 10)
+  const lo = Math.min(...small.map(t => t.classSize!)), hi = Math.max(...small.map(t => t.classSize!))
+  if (small.length) c.push(`반 평균은 응시 인원 ${lo === hi ? lo : `${lo}~${hi}`}명 기준이라 비교 지표로는 약합니다. 학생 본인의 단원별 정답률 위주로 읽어 주세요.`)
+  if (tests.some(t => !t.wrongComplete)) c.push('일부 시험은 리포트에 틀린 문항 번호가 모두 나오지 않아 단원별 합계만 반영했습니다.')
   if (st.targetYear < 2028) c.push(`${st.targetYear}학년도 수능은 2015 개정 교육과정 기준입니다. 표의 단원명은 2022 개정 기준으로 분류한 것이므로 대응 단원으로 읽어 주세요.`)
   const withWork = qs.filter(q => q.note.has_student_work).length
-  if (withWork < qs.length / 2) {
+  if (qs.length && withWork < qs.length / 2) {
     c.push(`풀이 없이 문제만 보낸 질문이 ${qs.length - withWork}건입니다. 이 질문들은 "어려워한 단원"의 근거일 뿐, 어떤 오류인지는 판단하지 못했습니다. 다음 4주는 자기 풀이를 함께 찍어 보내면 진단이 정확해집니다.`)
   }
   const low = qs.filter(q => q.note.topic_confidence === 'low').length
@@ -62,6 +87,8 @@ function buildCaveats(qs: QuestionRecord[], stats: TopicStat[], st: Student): st
 
 const SOLUTION_SYSTEM = `너는 27년 경력 수학 교사 어썸 정현경이다. 학생 한 명이 4주 동안 카카오톡으로 보낸 질문 집계를 보고 2022 개정 교육과정 기준 처방을 쓴다.
 규칙
+- 근거는 두 가지다. question_topics는 학생이 스스로 질문한 문제(어려워한 단원), test_units는 학원 테스트 결과(실제 정답률)다. 질문하지 않았는데 테스트에서 틀리는 단원을 특히 짚는다.
+- priorities의 code는 question_topics의 code 또는 test_units의 code만 쓴다.
 - 학생 구분과 목표 수능 범위(student.exam)를 기준으로 우선순위를 정한다. 수능 범위 밖 단원은 선수 개념으로만 다룬다.
 - 집계에 근거가 있는 말만 한다. 질문 수가 적은 단원을 단정하지 않는다.
 - priorities는 최대 3개. code는 집계에 나온 토픽 코드만 쓴다.
@@ -71,7 +98,7 @@ const SOLUTION_SYSTEM = `너는 27년 경력 수학 교사 어썸 정현경이�
 다른 말 없이 JSON 하나만 출력한다.
 {"headline":"한 문장 총평","priorities":[{"code":"","label":"","reason":"","action":""}],"prerequisites":[""],"weekly_plan":[{"week":1,"focus":"","tasks":[""]}],"habit":"풀이 습관 한 가지"}`
 
-async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<ErrorType, number>>, qs: QuestionRecord[], st: Student) {
+async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<ErrorType, number>>, qs: QuestionRecord[], st: Student, testStats: TestStat[]) {
   const topicInfo = stats
     .filter(s => s.code !== 'unmapped')
     .map(s => {
@@ -101,8 +128,13 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
         },
         total_questions: qs.length,
         error_totals: Object.fromEntries(Object.entries(errorTotals).map(([k, v]) => [ERROR_TYPE_LABEL[k as ErrorType], v])),
-        topics: topicInfo,
+        question_topics: topicInfo,
         recent_wrong_feedback: feedbacks,
+        // 학원 테스트(패스드림) 대단원별 정답 — code는 대단원 코드를 + 로 이은 값
+        test_units: testStats.map(t => ({
+          code: t.key, label: t.label, tests: t.tests, correct: t.correct, items: t.items,
+          class_rate: t.classTotal ? Math.round((t.classCorrect / t.classTotal) * 100) : null,
+        })),
       }),
     }],
   })
@@ -110,7 +142,7 @@ async function generateSolution(stats: TopicStat[], errorTotals: Partial<Record<
   const m = text.match(/\{[\s\S]*\}/)
   if (!m) throw new Error('진단 처방 파싱 실패')
   const j = JSON.parse(m[0]) as DiagnosisReport['solution']
-  const valid = new Set(stats.map(s => s.code))
+  const valid = new Set([...stats.map(s => s.code), ...testStats.map(t => t.key)])
   return {
     headline: j.headline ?? '',
     priorities: (j.priorities ?? []).filter(p => valid.has(p.code)).slice(0, 3),
@@ -138,14 +170,16 @@ export async function runDiagnosis(studentId: string, force = false, now = Date.
   const qs = (await listQuestions(studentId, st.cycleStart, now)).filter(q => q.note.legible)
   const daysLeft = Math.max(0, Math.ceil((st.cycleStart + CYCLE_MS - now) / 86400000))
 
+  const tests = await listTestResults(studentId, st.cycleStart, now)
   if (!due && !force) return { status: 'in_progress', count: qs.length, daysLeft }
-  if (qs.length < MIN_QUESTIONS) {
+  if (qs.length < MIN_QUESTIONS && tests.length < MIN_TESTS) {
     // 표본이 부족하면 주기를 닫지 않고 계속 누적한다
     return { status: 'not_enough', count: qs.length, daysLeft }
   }
 
   const { stats, errorTotals } = aggregate(qs)
-  const solution = await generateSolution(stats, errorTotals, qs, st)
+  const testStats = aggregateTests(tests)
+  const solution = await generateSolution(stats, errorTotals, qs, st, testStats)
   const report: DiagnosisReport = {
     id: newId(),
     studentId,
@@ -156,7 +190,12 @@ export async function runDiagnosis(studentId: string, force = false, now = Date.
     stats,
     errorTotals,
     solution,
-    caveats: buildCaveats(qs, stats, st),
+    caveats: buildCaveats(qs, stats, st, tests),
+    testStats,
+    tests: tests.map(t => ({
+      title: t.title, submittedAt: t.submittedAt, score: `${t.correct}/${t.totalItems}`,
+      rank: t.rank && t.classSize ? `${t.rank}/${t.classSize}` : '-',
+    })),
   }
   await saveReport(report)
   // 중간 진단(force && !due)은 주기를 닫지 않는다

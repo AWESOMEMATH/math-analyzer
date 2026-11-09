@@ -62,3 +62,6 @@
 .awr table { min-width: 560px; }
 .awr th, .awr td.num { white-space: nowrap; }
 .awn .katex { color: inherit; }
+.awr table.compact { min-width: 0; }
+.awr table.compact td:first-child { min-width: 9em; }
+.awr table.compact th, .awr table.compact td { padding: 5px 5px; }

@@ -29,14 +29,14 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <PrintButton />
       </div>
       <h1 className="title">4주 진단표</h1>
-      <div className="unit">{fmt(r.periodStart)} ~ {fmt(r.periodEnd)} · 질문 {r.total}건 · 2022 개정 교육과정 기준</div>
+      <div className="unit">{fmt(r.periodStart)} ~ {fmt(r.periodEnd)} · 질문 {r.total}건{r.tests?.length ? ` · 학원 테스트 ${r.tests.length}회` : ''} · 2022 개정 교육과정 기준</div>
 
       <div className="row" style={{ alignItems: 'center' }}>
         <Mascot mood="oh" size={64} />
         <div className="bubble">{s.headline}</div>
       </div>
 
-      <div className="box">
+      {r.stats.length > 0 && <div className="box">
         <div className="boxlab">단원별 질문·오류 현황</div>
         <div className="tablewrap">
           <table>
@@ -59,7 +59,35 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <p className="caveat">
           오류 유형 합계 — {ERR_ORDER.map(e => `${ERROR_TYPE_LABEL[e]} ${r.errorTotals[e] ?? 0}`).join(' · ')}
         </p>
-      </div>
+      </div>}
+
+      {r.testStats && r.testStats.length > 0 && (
+        <div className="box">
+          <div className="boxlab">학원 테스트 단원별 정답률 (패스드림 {r.tests?.length ?? 0}회)</div>
+          <div className="tablewrap">
+            <table className="compact">
+              <thead><tr><th>단원 (2022 개정)</th><th>회</th><th>정답</th><th>정답률</th><th>반평균</th></tr></thead>
+              <tbody>
+                {r.testStats.map(t => {
+                  const rate = t.items ? Math.round((t.correct / t.items) * 100) : 0
+                  const cls = t.classTotal ? Math.round((t.classCorrect / t.classTotal) * 100) : null
+                  return (
+                    <tr key={t.key}>
+                      <td>{t.label}<div className="bar" style={{ width: `${100 - rate}%`, marginTop: 4 }} /></td>
+                      <td className="num">{t.tests}</td>
+                      <td className="num">{t.correct}/{t.items}</td>
+                      <td className="num">{rate}%</td>
+                      <td className="num">{cls === null ? '-' : `${cls}%`}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {r.tests && <p className="caveat">반영한 시험 — {r.tests.map(t => `${t.title} (${t.submittedAt}, ${t.score})`).join(' · ')}</p>}
+          <p className="caveat">빨간 막대는 틀린 비율입니다.</p>
+        </div>
+      )}
 
       <div className="row">
         <Mascot mood="pout" arm="right" size={64} />

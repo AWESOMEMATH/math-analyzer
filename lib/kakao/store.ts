@@ -1,12 +1,13 @@
-import { randomBytes, randomInt } from 'crypto'
+import { createHash, randomBytes, randomInt } from 'crypto'
 import { getAdminDb } from '@/lib/firebaseAdmin'
-import type { Academy, DiagnosisReport, NoteData, PendingQuestion, QuestionRecord, Student } from './types'
+import type { Academy, DiagnosisReport, NoteData, PendingQuestion, QuestionRecord, Student, TestResult } from './types'
 
 const Q = 'kakao_questions'
 const U = 'kakao_users'      // 카카오 계정 → 학생 연결표
 const R = 'kakao_reports'
 const S = 'students'
 const A = 'academies'
+const T = 'test_results'
 
 export const CYCLE_MS = 28 * 24 * 60 * 60 * 1000
 
@@ -206,4 +207,32 @@ export async function getReport(id: string): Promise<DiagnosisReport | null> {
 export async function listDueStudents(now = Date.now()): Promise<Student[]> {
   const snap = await db().collection(S).where('cycleStart', '<=', now - CYCLE_MS).get()
   return snap.docs.map(d => d.data() as Student).filter(s => s.active)
+}
+
+// ── 테스트 결과 (패스드림) ─────────────────────
+export function testResultId(studentId: string, title: string, submittedAt: string): string {
+  return createHash('sha256').update(`${studentId}|${title}|${submittedAt}`).digest('base64url').slice(0, 24)
+}
+
+/** 이미 있으면 false (덮어쓰지 않음) */
+export async function saveTestResult(r: TestResult): Promise<boolean> {
+  const ref = db().collection(T).doc(r.id)
+  return db().runTransaction(async tx => {
+    if ((await tx.get(ref)).exists) return false
+    tx.set(ref, r)
+    return true
+  })
+}
+
+export async function listTestResults(studentId: string, from: number, to: number): Promise<TestResult[]> {
+  // 진단 주기는 「가져온 시각」 기준 — 지난 시험을 늦게 올려도 이번 주기의 새 정보로 본다
+  // (studentId, importedAt) 복합 색인 필요
+  const snap = await db().collection(T).where('studentId', '==', studentId)
+    .where('importedAt', '>=', from).where('importedAt', '<', to).orderBy('importedAt', 'asc').get()
+  return snap.docs.map(d => d.data() as TestResult)
+}
+
+export async function countTestResults(studentId: string): Promise<number> {
+  const snap = await db().collection(T).where('studentId', '==', studentId).count().get()
+  return snap.data().count
 }

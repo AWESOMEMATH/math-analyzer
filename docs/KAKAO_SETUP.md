@@ -16,6 +16,17 @@
 - 목표 수능 학년도가 2028 이상이면 2022 개정, 그 전이면 2015 개정으로 표시·처방
 - 동의 문구(`lib/kakao/consent.ts`)는 초안 — 법률 검토 후 `CONSENT_OPERATOR`, `CONSENT_RETENTION`, `CONSENT_CONTACT` 설정
 
+## 패스드림 테스트 결과 가져오기
+1. 패스드림에서 「과제 성적분석 리포트」를 PDF로 저장 (여러 학생이 한 파일에 있어도 됨)
+2. `/admin` → 해당 학원 → 「패스드림 테스트 결과 가져오기」에 PDF 올리기 (여러 개 동시 가능)
+3. PDF는 브라우저에서 읽고 글자만 서버로 보냄 (업로드 용량 제한 없음)
+4. 학생 이름으로 그 학원 명부와 맞춤 — 명부에 없거나 동명이인이면 저장하지 않고 알려 줌
+5. 같은 학생·시험·제출일은 한 번만 저장 (다시 올려도 중복 없음)
+- 저장 내용: 시험명, 제출일, 총점, 석차, 단원별 정답(반 평균 포함), 틀린 문항 번호
+- 패스드림 단원명(2015 개정 수학Ⅰ·Ⅱ 등)은 2022 개정 대단원으로 바꿔 저장 (`lib/passdream/units.ts`)
+- 진단표: 질문 기록과 테스트 결과를 함께 반영. 질문이 적어도 테스트가 `DIAG_MIN_TESTS`(기본 2)회 이상이면 생성
+- 패스드림 화면 구성이 바뀌면 읽기가 깨질 수 있음 — 가져오기 결과의 경고 문구를 확인
+
 ## 흐름
 1. 학생이 채널 채팅방에 문제 사진(가능하면 자기 풀이 포함)을 보냄
 2. `/api/kakao/skill` 이 5초 안에 "풀이 중" 즉답 (콜백 사용)
@@ -46,6 +57,7 @@ PUBLIC_BASE_URL=https://<도메인>
 FIREBASE_SERVICE_ACCOUNT=<서비스 계정 JSON 한 줄>
 CRON_SECRET=<임의 문자열>               # Vercel Cron이 Authorization: Bearer 로 보냄
 DIAG_MIN_QUESTIONS=8
+DIAG_MIN_TESTS=2
 ADMIN_PASSWORD=<관리자 비밀번호>
 KAKAO_CHANNEL_URL=<카카오톡 채널 링크>
 CONSENT_OPERATOR=
@@ -57,7 +69,7 @@ BRAIN_API_TOKEN=
 
 ### Firestore
 - `firestore.rules` 배포 (kakao_* 컬렉션은 클라이언트 접근 차단)
-- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status`
+- 복합 색인: `kakao_questions` — `studentId` 오름차순 + `createdAt` 오름차순 / `studentId` + `status` / `test_results` — `studentId` + `importedAt`
 
 ### 응답 시간
 Opus 5.5는 1분 콜백 제한을 넘길 수 있습니다. 45초 안에 답이 끝나지 않으면 「작성 중」 노트 링크를 먼저 보내고,

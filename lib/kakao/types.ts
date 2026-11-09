@@ -118,4 +118,47 @@ export interface DiagnosisReport {
     habit: string
   }
   caveats: string[]
+  /** 패스드림 테스트 단원별 합계 (이번 주기에 가져온 시험) */
+  testStats?: TestStat[]
+  tests?: { title: string; submittedAt: string; score: string; rank: string }[]
+}
+
+export interface TestStat {
+  key: string          // 대단원 코드를 + 로 이은 값, 대응 없으면 패스드림 단원명
+  label: string
+  codes: string[]
+  tests: number
+  items: number
+  correct: number
+  classCorrect: number
+  classTotal: number
+}
+
+// ── 패스드림 테스트 결과 ───────────────────────
+export interface TestUnit {
+  label: string        // 패스드림 단원명
+  codes: string[]      // 2022 개정 대단원 코드
+  items: number
+  correct: number
+  classCorrect: number
+  classTotal: number
+}
+
+export interface TestResult {
+  id: string           // 학생·시험·제출일로 만든 고정 ID — 같은 PDF를 다시 올려도 중복되지 않는다
+  studentId: string
+  academyId: string
+  source: 'passdream'
+  title: string
+  course: string
+  submittedAt: string  // YYYY-MM-DD
+  takenAt: number      // submittedAt의 epoch ms (기간 조회용)
+  totalItems: number
+  correct: number
+  rank: number | null
+  classSize: number | null
+  units: TestUnit[]
+  wrongItems: number[]
+  wrongComplete: boolean
+  importedAt: number
 }

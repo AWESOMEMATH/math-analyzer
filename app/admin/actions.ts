@@ -105,3 +105,50 @@ export async function toggleActiveAction(fd: FormData) {
   if (st) await updateStudent(id, { active: !st.active })
   revalidatePath('/admin')
 }
+
+// ── 패스드림 성적분석 리포트 PDF 가져오기 ──────────────
+export interface ImportSummary {
+  error?: string
+  saved: { name: string; title: string; score: string }[]
+  duplicate: string[]
+  unmatched: string[]     // 이 학원 명부에 없는 이름
+  ambiguous: string[]     // 동명이인
+  warnings: string[]
+}
+
+/** lines: 브라우저에서 PDF에서 뽑은 글자 줄 (lib/passdream/extract.ts) */
+export async function importPassdreamAction(academyId: string, lines: string[]): Promise<ImportSummary> {
+  await requireAdmin()
+  const { parseReport } = await import('@/lib/passdream/parse')
+  const { listStudents, saveTestResult, testResultId, updateStudent } = await import('@/lib/kakao/store')
+  const out: ImportSummary = { saved: [], duplicate: [], unmatched: [], ambiguous: [], warnings: [] }
+  if (!academyId) return { ...out, error: '학원을 선택하세요' }
+  if (!Array.isArray(lines) || lines.length > 50000) return { ...out, error: '파일 내용을 읽지 못했습니다' }
+
+  const results = parseReport(lines.map(l => String(l).slice(0, 2000)))
+  if (!results.length) return { ...out, error: '패스드림 「과제 성적분석 리포트」 PDF가 아닌 것 같습니다' }
+
+  const students = (await listStudents(academyId)).filter(s => s.active)
+  const now = Date.now()
+  for (const r of results) {
+    const who = students.filter(s => s.name.replace(/\s/g, '') === r.studentName)
+    if (who.length === 0) { out.unmatched.push(r.studentName); continue }
+    if (who.length > 1) { out.ambiguous.push(r.studentName); continue }
+    const st = who[0]
+    r.warnings.forEach(w => out.warnings.push(`${r.studentName}: ${w}`))
+    const takenAt = r.submittedAt ? new Date(`${r.submittedAt}T00:00:00+09:00`).getTime() : now
+    const saved = await saveTestResult({
+      id: testResultId(st.id, r.title, r.submittedAt),
+      studentId: st.id, academyId, source: 'passdream',
+      title: r.title, course: r.course, submittedAt: r.submittedAt, takenAt,
+      totalItems: r.totalItems, correct: r.correct, rank: r.rank, classSize: r.classSize,
+      units: r.units, wrongItems: r.wrongItems, wrongComplete: r.wrongComplete, importedAt: now,
+    })
+    if (!saved) { out.duplicate.push(`${r.studentName} (${r.title})`); continue }
+    // 질문이 아직 없어도 테스트가 들어오면 4주 진단 주기를 시작한다
+    if (!st.cycleStart) await updateStudent(st.id, { cycleStart: now })
+    out.saved.push({ name: r.studentName, title: r.title, score: `${r.correct}/${r.totalItems}` })
+  }
+  revalidatePath('/admin')
+  return out
+}

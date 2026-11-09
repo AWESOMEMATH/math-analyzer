@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
 import { isAdmin } from '@/lib/admin'
-import { countQuestions, listAcademies, listStudents } from '@/lib/kakao/store'
+import { countQuestions, countTestResults, listAcademies, listStudents } from '@/lib/kakao/store'
 import { curriculumOf, defaultTargetYear } from '@/lib/kakao/exam'
 import {
   addAcademyAction, addStudentAction, bulkAddAction, loginAction, logoutAction, reissueCodeAction, toggleActiveAction,
 } from './actions'
+import PassdreamImport from './PassdreamImport'
 import './admin.css'
 
 export const dynamic = 'force-dynamic'
@@ -32,6 +33,7 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
   const current = sp.academy && academies.some(a => a.id === sp.academy) ? sp.academy : academies[0]?.id
   const students = current ? await listStudents(current) : []
   const counts = await Promise.all(students.map(s => countQuestions(s.id).catch(() => 0)))
+  const tests = await Promise.all(students.map(s => countTestResults(s.id).catch(() => 0)))
   const schools = [...new Set(students.map(s => s.school).filter(Boolean))].sort()
   const channel = process.env.KAKAO_CHANNEL_URL || '(카카오톡 채널 링크)'
   const academyName = (id: string) => academies.find(a => a.id === id)?.name ?? '-'
@@ -92,11 +94,16 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
           </section>
 
           <section className="card">
+            <h2>패스드림 테스트 결과 가져오기 — {academyName(current)}</h2>
+            <PassdreamImport academyId={current} />
+          </section>
+
+          <section className="card">
             <h2>학생 {students.length}명</h2>
             <div className="tablewrap">
               <table>
                 <thead>
-                  <tr><th>이름</th><th>구분</th><th>학교</th><th>목표 수능</th><th>카톡 연결</th><th>질문</th><th></th></tr>
+                  <tr><th>이름</th><th>구분</th><th>학교</th><th>목표 수능</th><th>카톡 연결</th><th>질문</th><th>테스트</th><th></th></tr>
                 </thead>
                 <tbody>
                   {students.map((s, i) => (
@@ -113,6 +120,7 @@ export default async function AdminPage({ searchParams }: { searchParams: SP }) 
                             : '-'}
                       </td>
                       <td className="num">{counts[i]}</td>
+                      <td className="num">{tests[i]}</td>
                       <td className="acts">
                         <form action={reissueCodeAction}><input type="hidden" name="id" value={s.id} /><button className="ghost">코드 재발급</button></form>
                         <form action={toggleActiveAction}><input type="hidden" name="id" value={s.id} /><button className="ghost">{s.active ? '중지' : '재개'}</button></form>

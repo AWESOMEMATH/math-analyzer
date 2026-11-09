@@ -7,7 +7,7 @@
 //       (콜백 유효 시간 1분) → 진단표가 준비돼 있으면 함께 전달.
 import { after, NextRequest, NextResponse } from 'next/server'
 import { answerFromImage, ANSWER_MODEL, downloadImage } from '@/lib/kakao/answer'
-import { MIN_QUESTIONS, runDiagnosis } from '@/lib/kakao/diagnosis'
+import { MIN_QUESTIONS, MIN_TESTS, runDiagnosis } from '@/lib/kakao/diagnosis'
 import { findTopic } from '@/lib/kakao/curriculum'
 import {
   completeQuestion, confirmLink, createPendingQuestion, failQuestion, findStudentByCode,
@@ -131,7 +131,7 @@ async function handleDiagnosisRequest(studentId: string) {
   }
   const st = await getStudent(studentId)
   const last = st?.lastReportId ? await getReport(st.lastReportId) : null
-  const msg = `이번 4주 주기 질문 ${d.count}건 · 마감까지 ${d.daysLeft}일 남았어요.\n진단표는 질문이 ${MIN_QUESTIONS}건 이상 쌓이면 만들어져요. (앞으로 ${Math.max(0, MIN_QUESTIONS - d.count)}건)`
+  const msg = `이번 4주 주기 질문 ${d.count}건 · 마감까지 ${d.daysLeft}일 남았어요.\n진단표는 질문 ${MIN_QUESTIONS}건 또는 학원 테스트 ${MIN_TESTS}회가 쌓이면 만들어져요. (질문 앞으로 ${Math.max(0, MIN_QUESTIONS - d.count)}건)`
   return template(last ? [simpleText(msg), reportCard(last)] : [simpleText(msg)])
 }
 

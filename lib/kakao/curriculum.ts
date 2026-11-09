@@ -66,3 +66,13 @@ export function topicCatalog(): string {
     .map(t => `${t.code} | ${t.course} > ${t.chapter} > ${t.topic}`)
     .join('\n')
 }
+
+/** 대단원 코드(H.algebra.3) 목록 → "대수 > 삼각함수" 같은 표시 이름 */
+export function chapterLabel(codes: string[]): string {
+  const names = codes.map(code => {
+    const t = loadTopics().find(x => x.code.startsWith(code + '.'))
+    return t ? { course: t.course, chapter: t.chapter } : null
+  }).filter((x): x is { course: string; chapter: string } => !!x)
+  if (!names.length) return ''
+  return `${names[0].course} > ${names.map(n => n.chapter).join(' · ')}`
+}
